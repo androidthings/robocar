@@ -70,34 +70,31 @@ public class MainActivity extends Activity {
     private ConnectionStateListener mConnectionStateListener = new ConnectionStateListener() {
         @Override
         public void onConnectionStateChanged(int oldState, int newState) {
+            if (mCarController == null) {
+                return;
+            }
             switch (newState) {
                 case NearbyConnectionManager.STATE_OFF:
-                    Log.d(TAG, "onConnectionStateChanged: OFF");
                     mLed.setColor(TricolorLed.OFF);
+                    mCarController.setLedColor(TricolorLed.OFF);
                     break;
                 case NearbyConnectionManager.STATE_ERROR:
-                    Log.d(TAG, "onConnectionStateChanged: ERROR (R)");
-                    mLed.setColor(TricolorLed.RED);
+                    mCarController.setLedColor(TricolorLed.RED);
                     break;
                 case NearbyConnectionManager.STATE_INITIALIZING:
-                    Log.d(TAG, "onConnectionStateChanged: INIT (Y)");
-                    mLed.setColor(TricolorLed.YELLOW);
+                    mCarController.setLedColor(TricolorLed.YELLOW);
                     break;
                 case NearbyConnectionManager.STATE_SUSPENDED:
-                    Log.d(TAG, "onConnectionStateChanged: SUSPEND (Y)");
-                    mLed.setColor(TricolorLed.YELLOW);
+                    mCarController.setLedColor(TricolorLed.YELLOW);
                     break;
                 case NearbyConnectionManager.STATE_PAIRING:
-                    Log.d(TAG, "onConnectionStateChanged: PAIR (RB)");
-                    mLed.setColor(TricolorLed.MAGENTA); // TODO flash red/blue
+                    mCarController.setLedColor(TricolorLed.MAGENTA); // TODO flash red/blue
                     break;
                 case NearbyConnectionManager.STATE_CONNECTING:
-                    Log.d(TAG, "onConnectionStateChanged: CONNECTING (BG)");
-                    mLed.setColor(TricolorLed.CYAN); // TODO flash blue/green
+//                    mCarController.setLedColor(TricolorLed.CYAN); // TODO flash blue/green
                     break;
                 case NearbyConnectionManager.STATE_CONNECTED:
-                    Log.d(TAG, "onConnectionStateChanged: CONNECTED (G)");
-                    mLed.setColor(TricolorLed.GREEN);
+                    mCarController.setLedColor(TricolorLed.GREEN);
                     break;
             }
         }
@@ -106,8 +103,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mNearbyConnectionManager = new NearbyAdvertiser(this, payloadListener,
-                mConnectionStateListener);
 
         try {
             mMotorHat = new MotorHat(BoardDefaults.getI2cBus());
@@ -115,8 +110,13 @@ public class MainActivity extends Activity {
             throw new RuntimeException("Failed to create MotorHat", e);
         }
 
-        mLed = new TricolorLed("GPIO_34", "GPIO_39", "GPIO_32");
+        String[] ledPins = BoardDefaults.getLedGpioPins();
+        mLed = new TricolorLed(ledPins[0], ledPins[1], ledPins[2]);
         mCarController = new CarController(mMotorHat, mLed);
+
+        mNearbyConnectionManager = new NearbyAdvertiser(this, payloadListener,
+                mConnectionStateListener, mCarController.getAdvertisingName()
+        );
     }
 
     @Override

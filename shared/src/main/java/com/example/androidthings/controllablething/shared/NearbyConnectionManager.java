@@ -37,8 +37,7 @@ public abstract class NearbyConnectionManager
 
     private final static String TAG = "NearbyConnectionManager";
 
-    final static String ADVERTISING_NAME = "$p33D R4<3R";
-    final static String SERVICE_ID = "SPEED_RACER";
+    final static String SERVICE_ID = "com.example.androidthings.controllablething";
     final static Strategy STRATEGY = Strategy.P2P_STAR;
 
     public static final int STATE_ERROR = -1;

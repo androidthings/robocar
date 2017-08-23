@@ -23,6 +23,8 @@ import com.example.androidthings.controllablething.shared.CarCommands;
 import com.example.motorhat.MotorHat;
 
 import java.io.IOException;
+import java.util.Random;
+import java.util.StringJoiner;
 
 public class CarController {
 
@@ -43,6 +45,9 @@ public class CarController {
     private HandlerThread mHandlerThread;
     private Handler mHandler;
 
+    private int[] mColorPattern;
+    private String mAdvertisingName;
+
     public CarController(MotorHat motorHat, TricolorLed led) {
         mMotorHat = motorHat;
         mLed = led;
@@ -52,6 +57,33 @@ public class CarController {
         stop();
         clearBlinker();
         mHandlerThread.quit();
+    }
+
+    public String getAdvertisingName() {
+        if (mAdvertisingName == null) {
+            generateAdvertisingName();
+        }
+        return mAdvertisingName;
+    }
+
+    private void generateAdvertisingName() {
+        mColorPattern = new int[4];
+        Random random = new Random();
+        int color;
+        int previous = TricolorLed.OFF;
+        StringJoiner joiner = new StringJoiner(" ");
+        for (int i = 0; i < mColorPattern.length; i++) {
+            // generate an int in the range [1, 7]
+            color = random.nextInt(7) + 1;
+            if (color == previous) {
+                i--; // pick a different color
+            } else {
+                mColorPattern[i] = color;
+                previous = color;
+                joiner.add(TricolorLed.getColorName(color));
+            }
+        }
+        mAdvertisingName = joiner.toString();
     }
 
     // Motor controls

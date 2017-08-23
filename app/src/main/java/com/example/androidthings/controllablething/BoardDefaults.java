@@ -32,6 +32,17 @@ class BoardDefaults {
         }
     }
 
+    public static String[] getLedGpioPins() {
+        switch (Build.DEVICE) {
+            case DEVICE_RPI3:
+                return new String[]{"BCM5", "BCM6", "BCM12"};
+            case DEVICE_IMX7D_PICO:
+                return new String[]{"GPIO_34", "GPIO_39", "GPIO_32"};
+            default:
+                throw new IllegalArgumentException("Unknown device: " + Build.DEVICE);
+        }
+    }
+
     private BoardDefaults() {
         //no instance
     }

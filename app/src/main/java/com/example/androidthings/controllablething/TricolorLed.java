@@ -15,8 +15,10 @@
  */
 package com.example.androidthings.controllablething;
 
+import android.graphics.Color;
 import android.support.annotation.IntDef;
 import android.util.Log;
+import android.util.SparseArray;
 
 import com.google.android.things.pio.Gpio;
 import com.google.android.things.pio.PeripheralManagerService;
@@ -42,11 +44,27 @@ public class TricolorLed implements AutoCloseable {
     @Retention(RetentionPolicy.SOURCE)
     public @interface Tricolor{}
 
+    private static final SparseArray<String> COLOR_NAME_MAP;
+    static {
+        COLOR_NAME_MAP = new SparseArray<>(7);
+        COLOR_NAME_MAP.append(1, "red");
+        COLOR_NAME_MAP.append(2, "green");
+        COLOR_NAME_MAP.append(3, "yellow");
+        COLOR_NAME_MAP.append(4, "blue");
+        COLOR_NAME_MAP.append(5, "magenta");
+        COLOR_NAME_MAP.append(6, "cyan");
+        COLOR_NAME_MAP.append(7, "white");
+    }
+
     private Gpio mGpioRed;
     private Gpio mGpioGreen;
     private Gpio mGpioBlue;
 
-    private int mColor = OFF;
+    private int mColor = Color.BLACK;
+
+    public static String getColorName(@Tricolor int color) {
+        return COLOR_NAME_MAP.get(color);
+    }
 
     public TricolorLed(String redPin, String greenPin, String bluePin) {
         PeripheralManagerService pioService = new PeripheralManagerService();

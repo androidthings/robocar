@@ -34,18 +34,21 @@ import com.google.android.gms.nearby.connection.PayloadCallback;
 public class NearbyAdvertiser extends NearbyConnectionManager {
 
     private static final String TAG = "NearbyAdvertiser";
+    private final String mAdvertisingName;
 
-    public NearbyAdvertiser(Context context, PayloadCallback payloadListener) {
-        this(context, payloadListener, null);
+    public NearbyAdvertiser(Context context, PayloadCallback payloadListener,
+            String advertisingName) {
+        this(context, payloadListener, null, advertisingName);
     }
 
     public NearbyAdvertiser(Context context, PayloadCallback payloadListener,
-            ConnectionStateListener connectionStateListener) {
+            ConnectionStateListener connectionStateListener, String advertisingName) {
         super(context, payloadListener, connectionStateListener);
+        mAdvertisingName = advertisingName;
     }
 
     private void startAdvertising() {
-        Nearby.Connections.startAdvertising(mGoogleApiClient, ADVERTISING_NAME, SERVICE_ID,
+        Nearby.Connections.startAdvertising(mGoogleApiClient, mAdvertisingName, SERVICE_ID,
                 mLifecycleCallback, new AdvertisingOptions(STRATEGY))
                 .setResultCallback(new ResultCallback<Connections.StartAdvertisingResult>() {
                     @Override
