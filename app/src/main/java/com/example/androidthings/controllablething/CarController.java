@@ -15,6 +15,8 @@
  */
 package com.example.androidthings.controllablething;
 
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Log;
 
 import com.example.androidthings.controllablething.shared.CarCommands;
@@ -30,15 +32,29 @@ public class CarController {
     private static final int[] LEFT_MOTORS = {0, 2};
     private static final int[] RIGHT_MOTORS = {1, 3};
 
-    private int SPEED_NORMAL = 100;
-    private int SPEED_TURNING_INSIDE = 70;
-    private int SPEED_TURNING_OUTSIDE = 250;
+    private static final int SPEED_NORMAL = 100;
+    private static final int SPEED_TURNING_INSIDE = 70;
+    private static final int SPEED_TURNING_OUTSIDE = 250;
 
     private MotorHat mMotorHat;
 
-    public CarController(MotorHat motorHat) {
+    private TricolorLed mLed;
+    private LedPatternBlinker mBlinker;
+    private HandlerThread mHandlerThread;
+    private Handler mHandler;
+
+    public CarController(MotorHat motorHat, TricolorLed led) {
         mMotorHat = motorHat;
+        mLed = led;
     }
+
+    public void shutDown() {
+        stop();
+        clearBlinker();
+        mHandlerThread.quit();
+    }
+
+    // Motor controls
 
     public boolean onCarCommand(int command) {
         switch (command) {
@@ -56,23 +72,23 @@ public class CarController {
         return false;
     }
 
-    boolean goForward() {
+    private boolean goForward() {
         return setSpeed(SPEED_NORMAL) && setMotorState(MotorHat.MOTOR_STATE_CW, ALL_MOTORS);
     }
 
-    boolean goBackward() {
+    private boolean goBackward() {
         return setSpeed(SPEED_NORMAL) && setMotorState(MotorHat.MOTOR_STATE_CCW, ALL_MOTORS);
     }
 
-    boolean stop() {
+    private boolean stop() {
         return setMotorState(MotorHat.MOTOR_STATE_RELEASE, ALL_MOTORS);
     }
 
-    boolean turnLeft() {
+    private boolean turnLeft() {
         return turn(LEFT_MOTORS, RIGHT_MOTORS);
     }
 
-    boolean turnRight() {
+    private boolean turnRight() {
         return turn(RIGHT_MOTORS, LEFT_MOTORS);
     }
 
@@ -116,6 +132,63 @@ public class CarController {
         } catch (IOException e) {
             Log.e(TAG, "Error setting speed", e);
             return false;
+        }
+    }
+
+    // LED controls
+
+    public void setLedColor(final int color) {
+        clearBlinker();
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                mLed.setColor(color);
+            }
+        });
+    }
+
+    public void blinkLed(int[] colors, int repeatCount) {
+        clearBlinker();
+        mBlinker = new LedPatternBlinker(colors, repeatCount);
+        mHandler.post(mBlinker);
+    }
+
+    private void clearBlinker() {
+        if (mBlinker != null) {
+            mHandler.removeCallbacks(mBlinker);
+            mBlinker = null;
+        }
+    }
+
+    private class LedPatternBlinker implements Runnable {
+
+        static final long BLINK_MS = 330L;
+        static final int REPEAT_INFINITE = -1;
+
+        private final int[] mColors;
+        private final int mRepeatCount;
+        private int mCount = 0;
+        private int mIndex = 0;
+
+        LedPatternBlinker(int[] colors, int repeatCount) {
+            mColors = colors;
+            mRepeatCount = repeatCount;
+        }
+
+        @Override
+        public void run() {
+            if (mColors == null || mColors.length == 0) {
+                return; // nothing to blink
+            }
+            if (mRepeatCount < 0 || mCount < mRepeatCount) {
+                mLed.setColor(mColors[mIndex++]);
+                if (mIndex >= mColors.length) {
+                    mIndex = 0;
+                    mCount++;
+                }
+
+                mHandler.postDelayed(this, BLINK_MS);
+            }
         }
     }
 }

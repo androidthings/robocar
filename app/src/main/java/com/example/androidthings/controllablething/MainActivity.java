@@ -24,8 +24,7 @@ import android.view.KeyEvent;
 import com.example.androidthings.controllablething.shared.CarCommands;
 import com.example.androidthings.controllablething.shared.NearbyAdvertiser;
 import com.example.androidthings.controllablething.shared.NearbyConnectionManager;
-import com.example.androidthings.controllablething.shared.NearbyConnectionManager
-        .ConnectionStateListener;
+import com.example.androidthings.controllablething.shared.NearbyConnectionManager.ConnectionStateListener;
 import com.example.motorhat.MotorHat;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
@@ -38,10 +37,10 @@ public class MainActivity extends Activity {
     private static final String TAG = "MainActivity";
 
     private NearbyConnectionManager mNearbyConnectionManager;
-    private MotorHat mMotorHat;
-    private CarController mCarController;
 
+    private MotorHat mMotorHat;
     private TricolorLed mLed;
+    private CarController mCarController;
 
     PayloadCallback payloadListener = new PayloadCallback() {
         @Override
@@ -112,26 +111,27 @@ public class MainActivity extends Activity {
 
         try {
             mMotorHat = new MotorHat(BoardDefaults.getI2cBus());
-            mCarController = new CarController(mMotorHat);
         } catch (IOException e) {
-            Log.e(TAG, "Failed to create MotorHat", e);
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to create MotorHat", e);
         }
 
         mLed = new TricolorLed("GPIO_34", "GPIO_39", "GPIO_32");
+        mCarController = new CarController(mMotorHat, mLed);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (mCarController != null) {
+            mCarController.shutDown();
+        }
+
         if (mMotorHat != null) {
             try {
-                mCarController.stop();
                 mMotorHat.close();
             } catch (IOException e) {
                 Log.e(TAG, "Error closing MotorHat", e);
             } finally {
-                mCarController = null;
                 mMotorHat = null;
             }
         }
@@ -168,19 +168,19 @@ public class MainActivity extends Activity {
         if (mCarController != null) {
             switch (keyCode) {
                 case KeyEvent.KEYCODE_F:
-                    mCarController.goForward();
+                    mCarController.onCarCommand(CarCommands.GO_FORWARD);
                     return true;
                 case KeyEvent.KEYCODE_B:
-                    mCarController.goBackward();
+                    mCarController.onCarCommand(CarCommands.GO_BACK);
                     return true;
                 case KeyEvent.KEYCODE_L:
-                    mCarController.turnLeft();
+                    mCarController.onCarCommand(CarCommands.TURN_LEFT);
                     return true;
                 case KeyEvent.KEYCODE_R:
-                    mCarController.turnRight();
+                    mCarController.onCarCommand(CarCommands.TURN_RIGHT);
                     return true;
                 case KeyEvent.KEYCODE_S:
-                    mCarController.stop();
+                    mCarController.onCarCommand(CarCommands.STOP);
                     return true;
             }
         }
