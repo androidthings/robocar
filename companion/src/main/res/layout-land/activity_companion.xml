@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2017 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<android.support.constraint.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <!-- Note: Left/Right is used intentionally instead of Start/End, because the buttons which
+         make the car turn should not change places in LTR locales.
+    -->
+    <ImageButton
+        android:id="@+id/btn_stop"
+        style="@style/ImageButton.CarControl"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="Stop"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintHorizontal_bias="0.75"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/ic_stop_black_48dp"
+        tools:ignore="HardcodedText" />
+
+    <ImageButton
+        android:id="@+id/btn_forward"
+        style="@style/ImageButton.CarControl"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="Forward"
+        app:layout_constraintBottom_toTopOf="@id/btn_stop"
+        app:layout_constraintEnd_toEndOf="@+id/btn_stop"
+        app:layout_constraintStart_toStartOf="@+id/btn_stop"
+        app:srcCompat="@drawable/ic_up_black_48dp"
+        tools:ignore="HardcodedText" />
+
+    <ImageButton
+        android:id="@+id/btn_back"
+        style="@style/ImageButton.CarControl"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="Back"
+        app:layout_constraintEnd_toEndOf="@+id/btn_stop"
+        app:layout_constraintStart_toStartOf="@+id/btn_stop"
+        app:layout_constraintTop_toBottomOf="@id/btn_stop"
+        app:srcCompat="@drawable/ic_down_black_48dp"
+        tools:ignore="HardcodedText" />
+
+    <ImageButton
+        android:id="@+id/btn_left"
+        style="@style/ImageButton.CarControl"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="16dp"
+        android:contentDescription="Left"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintRight_toLeftOf="@id/btn_stop"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/ic_turn_left_black_48dp"
+        tools:ignore="HardcodedText,RtlHardcoded" />
+
+    <ImageButton
+        android:id="@+id/btn_right"
+        style="@style/ImageButton.CarControl"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="16dp"
+        android:contentDescription="Right"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/btn_stop"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/ic_turn_right_black_48dp"
+        tools:ignore="HardcodedText,RtlHardcoded" />
+
+    <TextView
+        android:id="@+id/error"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Error!"
+        android:textColor="@android:color/holo_red_dark"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:visibility="visible" />
+
+    <TextView
+        android:id="@+id/log_text"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginEnd="32dp"
+        android:gravity="bottom"
+        app:layout_constraintEnd_toStartOf="@id/btn_left"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintVertical_bias="1"
+        tools:text="Connecting to endpoint abc123...\nConnected!" />
+
+</android.support.constraint.ConstraintLayout>
+
