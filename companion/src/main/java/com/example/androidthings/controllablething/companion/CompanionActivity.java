@@ -16,12 +16,9 @@
 
 package com.example.androidthings.controllablething.companion;
 
-import android.Manifest;
-import android.content.pm.PackageManager;
+import android.content.Intent;
+import android.content.IntentSender.SendIntentException;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.util.SparseArray;
@@ -29,21 +26,25 @@ import android.view.View;
 import android.widget.TextView;
 
 import com.example.androidthings.controllablething.shared.CarCommands;
+import com.example.androidthings.controllablething.shared.ConnectorFragment;
+import com.example.androidthings.controllablething.shared.ConnectorFragment.ConnectorCallbacks;
+import com.example.androidthings.controllablething.shared.GoogleApiClientCreator;
 import com.example.androidthings.controllablething.shared.NearbyConnectionManager;
-import com.example.androidthings.controllablething.shared.NearbyConnectionManager
-        .ConnectionStateListener;
+import com.example.androidthings.controllablething.shared.NearbyConnectionManager.ConnectionStateListener;
 import com.example.androidthings.controllablething.shared.NearbyDiscoverer;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 
-public class CompanionActivity extends AppCompatActivity {
+
+public class CompanionActivity extends AppCompatActivity implements ConnectorCallbacks {
 
     private static final String TAG = "CompanionActivity";
 
-    private static final int PERMISSION_REQUEST_CODE = 1;
-
     private NearbyConnectionManager mNearbyConnectionManager;
+
     private SparseArray<View> mCarControlMap = new SparseArray<>(5);
     private View mActivatedControl;
     private View mErrorView;
@@ -84,7 +85,9 @@ public class CompanionActivity extends AppCompatActivity {
         configureButton(R.id.btn_right, CarCommands.TURN_RIGHT);
         configureButton(R.id.btn_stop, CarCommands.STOP);
 
-        mNearbyConnectionManager = new NearbyDiscoverer(this, payloadListener,
+        GoogleApiClient client = GoogleApiClientCreator.getClient(this);
+        ConnectorFragment.attachTo(this, client);
+        mNearbyConnectionManager = new NearbyDiscoverer(client, payloadListener,
                 mConnectionStateListener);
     }
 
@@ -100,22 +103,6 @@ public class CompanionActivity extends AppCompatActivity {
                 }
             });
         }
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-        if (hasNecessaryPermissions()) {
-            mNearbyConnectionManager.connect();
-        } else {
-            getRuntimePermissions();
-        }
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        mNearbyConnectionManager.disconnect();
     }
 
     private void setActivatedControl(View view) {
@@ -139,40 +126,6 @@ public class CompanionActivity extends AppCompatActivity {
             mLogView.append("\n");
         }
         mLogView.append(text);
-    }
-
-    public void getRuntimePermissions() {
-        // Here, thisActivity is the current activity
-        if (!hasNecessaryPermissions()) {
-            // No explanation needed, we can request the permission.
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-                    PERMISSION_REQUEST_CODE);
-        }
-    }
-
-    public boolean hasNecessaryPermissions() {
-        return (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[],
-            @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case PERMISSION_REQUEST_CODE: {
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // permission was granted, yay!
-                    mNearbyConnectionManager.connect();
-
-                } else {
-                    // Permission denied, boo! Disable the corresponding functionality.
-                    disableControls();
-                }
-            }
-        }
     }
 
     PayloadCallback payloadListener = new PayloadCallback() {
@@ -200,4 +153,41 @@ public class CompanionActivity extends AppCompatActivity {
         public void onPayloadTransferUpdate(String s, PayloadTransferUpdate payloadTransferUpdate) {
         }
     };
+
+    @Override
+    public void onGoogleApiConnected(Bundle bundle) {
+        mNearbyConnectionManager.connect();
+    }
+
+    @Override
+    public void onGoogleApiConnectionSuspended(int cause) {
+        mNearbyConnectionManager.disconnect();
+        disableControls();
+    }
+
+    @Override
+    public void onGoogleApiConnectionFailed(ConnectionResult connectionResult) {
+        if (connectionResult.hasResolution()) {
+            try {
+                connectionResult.startResolutionForResult(this,
+                        R.integer.connection_resolution_request_code);
+            } catch (SendIntentException e) {
+                Log.e(TAG, "Google API connection failed. " + connectionResult, e);
+            }
+        } else {
+            Log.e(TAG, "Google API connection failed. " + connectionResult);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == R.integer.connection_resolution_request_code) {
+            if (resultCode == RESULT_OK) {
+                // try to reconnect
+                ConnectorFragment.connect(this);
+            }
+        } else {
+            super.onActivityResult(requestCode, resultCode, data);
+        }
+    }
 }

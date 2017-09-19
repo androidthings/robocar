@@ -22,17 +22,24 @@ import android.util.Log;
 import android.view.KeyEvent;
 
 import com.example.androidthings.controllablething.shared.CarCommands;
+import com.example.androidthings.controllablething.shared.ConnectorFragment;
+import com.example.androidthings.controllablething.shared.ConnectorFragment.ConnectorCallbacks;
+import com.example.androidthings.controllablething.shared.GoogleApiClientCreator;
 import com.example.androidthings.controllablething.shared.NearbyAdvertiser;
 import com.example.androidthings.controllablething.shared.NearbyConnectionManager;
-import com.example.androidthings.controllablething.shared.NearbyConnectionManager.ConnectionStateListener;
+import com.example.androidthings.controllablething.shared.NearbyConnectionManager
+        .ConnectionStateListener;
 import com.example.motorhat.MotorHat;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 
 import java.io.IOException;
 
-public class MainActivity extends Activity {
+
+public class MainActivity extends Activity implements ConnectorCallbacks {
 
     private static final String TAG = "MainActivity";
 
@@ -114,9 +121,10 @@ public class MainActivity extends Activity {
         mLed = new TricolorLed(ledPins[0], ledPins[1], ledPins[2]);
         mCarController = new CarController(mMotorHat, mLed);
 
-        mNearbyConnectionManager = new NearbyAdvertiser(this, payloadListener,
-                mConnectionStateListener, mCarController.getAdvertisingName()
-        );
+        GoogleApiClient client = GoogleApiClientCreator.getClient(this);
+        ConnectorFragment.attachTo(this, client);
+        mNearbyConnectionManager = new NearbyAdvertiser(client, payloadListener,
+                mConnectionStateListener, mCarController.getAdvertisingName());
     }
 
     @Override
@@ -148,18 +156,6 @@ public class MainActivity extends Activity {
     }
 
     @Override
-    protected void onStart() {
-        super.onStart();
-        mNearbyConnectionManager.connect();
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        mNearbyConnectionManager.disconnect();
-    }
-
-    @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
         return handleKeyCode(keyCode) || super.onKeyUp(keyCode, event);
     }
@@ -185,5 +181,21 @@ public class MainActivity extends Activity {
             }
         }
         return false;
+    }
+
+    @Override
+    public void onGoogleApiConnected(Bundle bundle) {
+        mNearbyConnectionManager.connect();
+    }
+
+    @Override
+    public void onGoogleApiConnectionSuspended(int cause) {
+        mNearbyConnectionManager.disconnect();
+    }
+
+    @Override
+    public void onGoogleApiConnectionFailed(ConnectionResult connectionResult) {
+        // We don't have a UI with which to resolve connection issues.
+        Log.e(TAG, "Google API connection failed: " + connectionResult);
     }
 }

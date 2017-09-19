@@ -15,8 +15,5 @@
      limitations under the License.
 -->
 <resources>
-    <integer name="button_pressed_animation_duration">100</integer>
-    <integer name="button_pressed_animation_delay">100</integer>
-
-    <item name="connection_resolution_request_code" type="integer" />
+    <item name="permissions_request_code" type="integer" />
 </resources>

@@ -16,12 +16,10 @@
 
 package com.example.androidthings.controllablething.shared;
 
-import android.content.Context;
-import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.util.Log;
 
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.nearby.Nearby;
@@ -35,13 +33,13 @@ public class NearbyDiscoverer extends NearbyConnectionManager {
 
     private static final String TAG = "NearbyDiscoverer";
 
-    public NearbyDiscoverer(Context context, PayloadCallback payloadListener) {
-        this(context, payloadListener, null);
+    public NearbyDiscoverer(GoogleApiClient client, PayloadCallback payloadListener) {
+        this(client, payloadListener, null);
     }
 
-    public NearbyDiscoverer(Context context, PayloadCallback payloadListener,
+    public NearbyDiscoverer(GoogleApiClient client, PayloadCallback payloadListener,
             ConnectionStateListener connectionStateListener) {
-        super(context, payloadListener, connectionStateListener);
+        super(client, payloadListener, connectionStateListener);
     }
 
     private void startDiscovery() {
@@ -92,9 +90,15 @@ public class NearbyDiscoverer extends NearbyConnectionManager {
     }
 
     @Override
-    public void onConnected(@Nullable Bundle bundle) {
-        Log.d(TAG, "Google API connected. Start discovery.");
+    public void connect() {
+        super.connect();
         startDiscovery();
+    }
+
+    @Override
+    public void disconnect() {
+        super.disconnect();
+        stopDiscovery();
     }
 
     @Override

@@ -16,13 +16,8 @@
 
 package com.example.androidthings.controllablething.shared;
 
-import android.content.Context;
-import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.util.Log;
 
-import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.nearby.Nearby;
 import com.google.android.gms.nearby.connection.ConnectionInfo;
@@ -32,8 +27,7 @@ import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.Strategy;
 
-public abstract class NearbyConnectionManager
-        implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
+public abstract class NearbyConnectionManager {
 
     private final static String TAG = "NearbyConnectionManager";
 
@@ -62,18 +56,13 @@ public abstract class NearbyConnectionManager
         void onConnectionStateChanged(int oldState, int newState);
     }
 
-    NearbyConnectionManager(Context context, PayloadCallback payloadListener) {
-        this(context, payloadListener, null);
+    NearbyConnectionManager(GoogleApiClient client, PayloadCallback payloadListener) {
+        this(client, payloadListener, null);
     }
 
-    NearbyConnectionManager(Context context, PayloadCallback payloadListener,
+    NearbyConnectionManager(GoogleApiClient client, PayloadCallback payloadListener,
             ConnectionStateListener connectionStateListener) {
-        mGoogleApiClient = new GoogleApiClient.Builder(context)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(Nearby.CONNECTIONS_API)
-                .build();
-
+        mGoogleApiClient = client;
         mPayloadListener = payloadListener;
         mConnectionStateListener = connectionStateListener;
         initializeLifecycleCallback();
@@ -88,6 +77,7 @@ public abstract class NearbyConnectionManager
                 Nearby.Connections.acceptConnection(mGoogleApiClient, endpointId, mPayloadListener);
                 remoteEndpointId = endpointId;
                 setState(STATE_CONNECTING);
+                onNearbyConnectionInitiated(endpointId);
             }
 
             @Override
@@ -99,6 +89,7 @@ public abstract class NearbyConnectionManager
                     onNearbyConnected(endpointId, connectionResolution);
                 } else {
                     Log.d(TAG, "onConnectionResult: Not connected :( " + endpointId);
+                    onNearbyConnectionRejected(endpointId);
                     setState(STATE_PAIRING);
                 }
             }
@@ -122,26 +113,11 @@ public abstract class NearbyConnectionManager
         }
     }
 
-    /*
-     * GoogleApiClient callbacks
-     *
-     * These methods refer to the connection states of the GoogleApiClient and not the connection
-     * states of the Nearby API. Not confusing at all (ahem).
-     */
-    @Override
-    public abstract void onConnected(@Nullable Bundle bundle);
-
-    @Override
-    public void onConnectionSuspended(int i) {
-        setState(STATE_SUSPENDED);
-    }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-        setState(STATE_ERROR);
-    }
-
     // Nearby API connection callbacks
+
+    protected void onNearbyConnectionInitiated(String endpointId) {}
+
+    protected void onNearbyConnectionRejected(String endpointId) {}
 
     protected void onNearbyConnected(String endpointId, ConnectionResolution connectionResolution) {
         setState(STATE_CONNECTED);
@@ -154,15 +130,11 @@ public abstract class NearbyConnectionManager
     // end of callbacks
 
     public void connect() {
-        mGoogleApiClient.connect();
         setState(STATE_INITIALIZING);
     }
 
     public void disconnect() {
-        if (mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
-            mGoogleApiClient.disconnect();
-            setState(STATE_OFF);
-        }
+        setState(STATE_OFF);
     }
 
     public void sendData(int data) {

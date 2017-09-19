@@ -16,12 +16,10 @@
 
 package com.example.androidthings.controllablething.shared;
 
-import android.content.Context;
-import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
 import android.util.Log;
 
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.nearby.Nearby;
@@ -36,14 +34,14 @@ public class NearbyAdvertiser extends NearbyConnectionManager {
     private static final String TAG = "NearbyAdvertiser";
     private final String mAdvertisingName;
 
-    public NearbyAdvertiser(Context context, PayloadCallback payloadListener,
+    public NearbyAdvertiser(GoogleApiClient client, PayloadCallback payloadListener,
             String advertisingName) {
-        this(context, payloadListener, null, advertisingName);
+        this(client, payloadListener, null, advertisingName);
     }
 
-    public NearbyAdvertiser(Context context, PayloadCallback payloadListener,
+    public NearbyAdvertiser(GoogleApiClient client, PayloadCallback payloadListener,
             ConnectionStateListener connectionStateListener, String advertisingName) {
-        super(context, payloadListener, connectionStateListener);
+        super(client, payloadListener, connectionStateListener);
         mAdvertisingName = advertisingName;
     }
 
@@ -71,9 +69,15 @@ public class NearbyAdvertiser extends NearbyConnectionManager {
     }
 
     @Override
-    public void onConnected(@Nullable Bundle bundle) {
-        Log.d(TAG, "Google API connected. Start advertising.");
+    public void connect() {
+        super.connect();
         startAdvertising();
+    }
+
+    @Override
+    public void disconnect() {
+        super.disconnect();
+        stopAdvertising();
     }
 
     @Override
