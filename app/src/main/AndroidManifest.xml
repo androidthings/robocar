@@ -12,7 +12,7 @@
     <application>
         <uses-library android:name="com.google.android.things" />
 
-        <activity android:name=".MainActivity">
+        <activity android:name=".RobocarActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

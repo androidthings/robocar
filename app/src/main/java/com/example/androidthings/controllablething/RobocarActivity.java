@@ -39,9 +39,9 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 import java.io.IOException;
 
 
-public class MainActivity extends Activity implements ConnectorCallbacks {
+public class RobocarActivity extends Activity implements ConnectorCallbacks {
 
-    private static final String TAG = "MainActivity";
+    private static final String TAG = "RobocarActivity";
 
     private NearbyConnectionManager mNearbyConnectionManager;
 
