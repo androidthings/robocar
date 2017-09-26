@@ -19,10 +19,14 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
 
+import com.example.androidthings.controllablething.TricolorLed.Tricolor;
 import com.example.androidthings.controllablething.shared.CarCommands;
+import com.example.androidthings.controllablething.shared.model.AdvertisingInfo.LedColor;
 import com.example.motorhat.MotorHat;
 
 import java.io.IOException;
+import java.util.List;
+
 
 public class CarController {
 
@@ -42,9 +46,6 @@ public class CarController {
     private LedPatternBlinker mBlinker;
     private HandlerThread mHandlerThread;
     private Handler mHandler;
-
-    private int[] mColorPattern;
-    private String mAdvertisingName;
 
     public CarController(MotorHat motorHat, TricolorLed led) {
         mMotorHat = motorHat;
@@ -143,7 +144,7 @@ public class CarController {
 
     // LED controls
 
-    public void setLedColor(final int color) {
+    public void setLedColor(final @Tricolor int color) {
         clearBlinker();
         mHandler.post(new Runnable() {
             @Override
@@ -153,7 +154,22 @@ public class CarController {
         });
     }
 
-    public void blinkLed(int[] colors, int repeatCount) {
+    public void setLedSequence(List<LedColor> colors) {
+        clearBlinker();
+        if (colors != null && !colors.isEmpty()) {
+            final int size = colors.size() + 2;
+            int[] pattern = new int[size];
+            for (int i = 0; i < size - 2; i++) {
+                LedColor color = colors.get(i);
+                pattern[i] = TricolorLed.ledColorToTricolor(color);
+            }
+            // Add 2 OFF beats
+            pattern[size - 2] = pattern[size - 1] = TricolorLed.OFF;
+            blinkLed(pattern, LedPatternBlinker.REPEAT_INFINITE);
+        }
+    }
+
+    private void blinkLed(int[] colors, int repeatCount) {
         clearBlinker();
         mBlinker = new LedPatternBlinker(colors, repeatCount);
         mHandler.post(mBlinker);
@@ -161,6 +177,7 @@ public class CarController {
 
     private void clearBlinker() {
         if (mBlinker != null) {
+            mBlinker.mCanceled = true; // removeCallbacks() might not catch it in time.
             mHandler.removeCallbacks(mBlinker);
             mBlinker = null;
         }
@@ -168,11 +185,12 @@ public class CarController {
 
     private class LedPatternBlinker implements Runnable {
 
-        static final long BLINK_MS = 330L;
+        static final long BLINK_MS = 400L;
         static final int REPEAT_INFINITE = -1;
 
         private final int[] mColors;
         private final int mRepeatCount;
+        private boolean mCanceled;
         private int mCount = 0;
         private int mIndex = 0;
 
@@ -183,10 +201,10 @@ public class CarController {
 
         @Override
         public void run() {
-            if (mColors == null || mColors.length == 0) {
+            if (mCanceled || mColors == null || mColors.length == 0) {
                 return; // nothing to blink
             }
-            if (mRepeatCount < 0 || mCount < mRepeatCount) {
+            if (mRepeatCount < 0 || mCount <= mRepeatCount) {
                 mLed.setColor(mColors[mIndex++]);
                 if (mIndex >= mColors.length) {
                     mIndex = 0;

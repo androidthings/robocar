@@ -15,6 +15,8 @@
  */
 package com.example.androidthings.controllablething.companion;
 
+import android.arch.lifecycle.LiveData;
+import android.arch.lifecycle.MutableLiveData;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -34,7 +36,9 @@ import com.google.android.gms.nearby.connection.DiscoveredEndpointInfo;
 import com.google.android.gms.nearby.connection.DiscoveryOptions;
 import com.google.android.gms.nearby.connection.EndpointDiscoveryCallback;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -42,9 +46,12 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
 
     private static final String TAG = "RobocarDiscoverer";
 
-    private boolean mIsDiscovering = false;
     private final Map<String, RobocarEndpoint> mEndpointMap = new LinkedHashMap<>();
     private RobocarEndpoint mConnectingEndpoint;
+
+    private MutableLiveData<Boolean> mDiscoveryLiveData;
+    private MutableLiveData<List<RobocarEndpoint>> mRobocarEndpointsLiveData;
+    private MutableLiveData<RobocarEndpoint> mConnectedRobocarLiveData;
 
     // Discovery
     private final EndpointDiscoveryCallback mEndpointDiscoveryCallback =
@@ -64,38 +71,60 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
     public RobocarDiscoverer(GoogleApiClient client) {
         super(client);
         client.registerConnectionCallbacks(this);
+
+        mDiscoveryLiveData = new MutableLiveData<>();
+        mDiscoveryLiveData.setValue(false);
+        mRobocarEndpointsLiveData = new MutableLiveData<>();
+        mConnectedRobocarLiveData = new MutableLiveData<>();
     }
 
-    public boolean isDiscovering() {
-        return mIsDiscovering;
+    // For observers
+
+    public LiveData<Boolean> getDiscoveryLiveData() {
+        return mDiscoveryLiveData;
     }
+
+    public LiveData<List<RobocarEndpoint>> getRobocarEndpointsLiveData() {
+        return mRobocarEndpointsLiveData;
+    }
+
+    public LiveData<RobocarEndpoint> getConnectedRobocarLiveData() {
+        return mConnectedRobocarLiveData;
+    }
+
+    // Discovery
 
     public void startDiscovery() {
-        if (mIsDiscovering) {
+        if (!mGoogleApiClient.isConnected()) {
+            Log.d(TAG, "Google Api Client not connected");
+            return;
+        }
+        if (mDiscoveryLiveData.getValue()) {
             Log.d(TAG, "startDiscovery already called");
             return;
         }
+
         // Pre-emptively set this so the check above catches calls while we wait for a result.
-        mIsDiscovering = true;
+        mDiscoveryLiveData.setValue(true);
         Nearby.Connections.startDiscovery(mGoogleApiClient, SERVICE_ID, mEndpointDiscoveryCallback,
                 new DiscoveryOptions(STRATEGY)).setResultCallback(new ResultCallback<Status>() {
             @Override
             public void onResult(@NonNull Status status) {
                 if (status.isSuccess()) {
                     Log.d(TAG, "Discovery started.");
-                    mIsDiscovering = true;
+                    mDiscoveryLiveData.setValue(true);
                 } else {
                     Log.d(TAG, String.format("Failed to start discovery. %d, %s",
                             status.getStatusCode(), status.getStatusMessage()));
-                    mIsDiscovering = false;
+                    mDiscoveryLiveData.setValue(false);
                 }
             }
         });
     }
 
     public void stopDiscovery() {
-        if (mIsDiscovering) {
-            mIsDiscovering = false;
+        if (mDiscoveryLiveData.getValue()) {
+            mDiscoveryLiveData.setValue(false);
             // if we're not connected, we already should have lost discovery
             if (mGoogleApiClient.isConnected()) {
                 Nearby.Connections.stopDiscovery(mGoogleApiClient);
@@ -104,7 +133,7 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
         }
     }
 
-    // Google API Client callbacks
+    // Google API connection
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
@@ -117,7 +146,7 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
         clearEndpoints();
     }
 
-    // Nearby connection callback
+    // Nearby connection
 
     private void onNearbyEndpointFound(String endpointId, DiscoveredEndpointInfo endpointInfo) {
         AdvertisingInfo info = AdvertisingInfo.parseAdvertisingName(endpointInfo.getEndpointName());
@@ -245,6 +274,6 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
     }
 
     private void onEndpointsChanged() {
-        // TODO publish
+        mRobocarEndpointsLiveData.setValue(new ArrayList<>(mEndpointMap.values()));
     }
 }

@@ -12,7 +12,8 @@
     <application>
         <uses-library android:name="com.google.android.things" />
 
-        <activity android:name=".RobocarActivity">
+        <activity android:name=".RobocarActivity"
+            android:theme="@style/Theme.AppCompat">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

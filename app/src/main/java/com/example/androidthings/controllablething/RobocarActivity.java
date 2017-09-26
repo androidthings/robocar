@@ -16,18 +16,21 @@
 
 package com.example.androidthings.controllablething;
 
-import android.app.Activity;
+import android.arch.lifecycle.Observer;
+import android.arch.lifecycle.ViewModelProviders;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.KeyEvent;
 
 import com.example.androidthings.controllablething.shared.CarCommands;
 import com.example.androidthings.controllablething.shared.ConnectorFragment;
 import com.example.androidthings.controllablething.shared.ConnectorFragment.ConnectorCallbacks;
-import com.example.androidthings.controllablething.shared.GoogleApiClientCreator;
+import com.example.androidthings.controllablething.shared.model.AdvertisingInfo;
+import com.example.androidthings.controllablething.shared.model.CompanionEndpoint;
 import com.example.motorhat.MotorHat;
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
@@ -35,15 +38,20 @@ import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 import java.io.IOException;
 
 
-public class RobocarActivity extends Activity implements ConnectorCallbacks {
+public class RobocarActivity extends AppCompatActivity implements ConnectorCallbacks {
 
     private static final String TAG = "RobocarActivity";
 
+    private AdvertisingInfo mAdvertisingInfo;
     private RobocarAdvertiser mNearbyAdvertiser;
 
     private MotorHat mMotorHat;
     private TricolorLed mLed;
     private CarController mCarController;
+    private RobocarViewModel mViewModel;
+
+    private boolean mIsAdvertising;
+    private boolean mIsCompanionConnected;
 
     PayloadCallback mPayloadListener = new PayloadCallback() {
         @Override
@@ -73,6 +81,7 @@ public class RobocarActivity extends Activity implements ConnectorCallbacks {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mAdvertisingInfo = AdvertisingInfoStore.getInstance(this).get();
 
         try {
             mMotorHat = new MotorHat(BoardDefaults.getI2cBus());
@@ -84,10 +93,29 @@ public class RobocarActivity extends Activity implements ConnectorCallbacks {
         mLed = new TricolorLed(ledPins[0], ledPins[1], ledPins[2]);
         mCarController = new CarController(mMotorHat, mLed);
 
-        GoogleApiClient client = GoogleApiClientCreator.getClient(this);
-        ConnectorFragment.attachTo(this, client);
-        mNearbyAdvertiser = new RobocarAdvertiser(client);
-        mNearbyAdvertiser.setAdvertisingInfo(AdvertisingInfoStore.getInstance(this).get());
+        mViewModel = ViewModelProviders.of(this).get(RobocarViewModel.class);
+        mViewModel.setAdvertisingInfo(mAdvertisingInfo);
+
+        mNearbyAdvertiser = mViewModel.getRobocarAdvertiser();
+        mNearbyAdvertiser.getAdvertisingLiveData().observe(this, new Observer<Boolean>() {
+            @Override
+            public void onChanged(@Nullable Boolean value) {
+                mIsAdvertising = value == null ? false : value;
+                updateUi();
+            }
+        });
+        mNearbyAdvertiser.getCompanionLiveData().observe(this, new Observer<CompanionEndpoint>() {
+            @Override
+            public void onChanged(@Nullable CompanionEndpoint companionEndpoint) {
+                mIsCompanionConnected = companionEndpoint != null;
+                updateUi();
+            }
+        });
+
+        if (savedInstanceState == null) {
+            // First launch. Attach the connector fragment and give it our client to connect.
+            ConnectorFragment.attachTo(this, mViewModel.getGoogleApiClient());
+        }
     }
 
     @Override
@@ -121,6 +149,7 @@ public class RobocarActivity extends Activity implements ConnectorCallbacks {
 
         if (mLed != null) {
             try {
+                mLed.setColor(TricolorLed.OFF);
                 mLed.close();
             } catch (Exception e) {
                 Log.e(TAG, "Error closing LED", e);
@@ -168,5 +197,15 @@ public class RobocarActivity extends Activity implements ConnectorCallbacks {
     public void onGoogleApiConnectionFailed(ConnectionResult connectionResult) {
         // We don't have a UI with which to resolve connection issues.
         Log.e(TAG, "Google API connection failed: " + connectionResult);
+    }
+
+    private void updateUi() {
+        if (mIsCompanionConnected) {
+            mCarController.setLedColor(TricolorLed.GREEN);
+        } else if (mIsAdvertising) {
+            mCarController.setLedSequence(mAdvertisingInfo.mLedSequence);
+        } else {
+            mCarController.setLedColor(TricolorLed.YELLOW);
+        }
     }
 }

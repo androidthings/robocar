@@ -17,13 +17,12 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 25
-    buildToolsVersion "26.0.0"
-
+    compileSdkVersion 26
+    buildToolsVersion "26.0.1"
 
     defaultConfig {
         minSdkVersion 24
-        targetSdkVersion 25
+        targetSdkVersion 26
         versionCode 1
         versionName "1.0"
 
@@ -46,4 +45,8 @@ dependencies {
     testImplementation 'junit:junit:4.12'
 
     api 'com.google.android.gms:play-services-nearby:11.0.2'
+    api "android.arch.lifecycle:extensions:1.0.0-beta1"
+    annotationProcessor "android.arch.lifecycle:compiler:1.0.0-beta1"
+
+
 }

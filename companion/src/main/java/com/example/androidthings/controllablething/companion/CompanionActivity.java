@@ -16,6 +16,7 @@
 
 package com.example.androidthings.controllablething.companion;
 
+import android.arch.lifecycle.ViewModelProviders;
 import android.content.Intent;
 import android.content.IntentSender.SendIntentException;
 import android.os.Bundle;
@@ -28,9 +29,7 @@ import android.widget.TextView;
 import com.example.androidthings.controllablething.shared.CarCommands;
 import com.example.androidthings.controllablething.shared.ConnectorFragment;
 import com.example.androidthings.controllablething.shared.ConnectorFragment.ConnectorCallbacks;
-import com.example.androidthings.controllablething.shared.GoogleApiClientCreator;
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
@@ -40,6 +39,8 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
 
     private static final String TAG = "CompanionActivity";
 
+    private static final int REQUEST_RESOLVE_CONNECTION = 1;
+
     private RobocarDiscoverer mNearbyDiscoverer;
 
     private SparseArray<View> mCarControlMap = new SparseArray<>(5);
@@ -47,12 +48,14 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
     private View mErrorView;
     private TextView mLogView;
 
+    private CompanionViewModel mViewModel;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_companion);
         mErrorView = findViewById(R.id.error);
-        mLogView = (TextView) findViewById(R.id.log_text);
+        mLogView = findViewById(R.id.log_text);
 
         configureButton(R.id.btn_forward, CarCommands.GO_FORWARD);
         configureButton(R.id.btn_back, CarCommands.GO_BACK);
@@ -60,9 +63,14 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
         configureButton(R.id.btn_right, CarCommands.TURN_RIGHT);
         configureButton(R.id.btn_stop, CarCommands.STOP);
 
-        GoogleApiClient client = GoogleApiClientCreator.getClient(this);
-        ConnectorFragment.attachTo(this, client);
-        mNearbyDiscoverer = new RobocarDiscoverer(client);
+        mViewModel = ViewModelProviders.of(this).get(CompanionViewModel.class);
+        mNearbyDiscoverer = mViewModel.getRobocarDiscoverer();
+        // TODO observe things in the ViewModel
+
+        if (savedInstanceState == null) {
+            // First launch. Attach the connector fragment and give it our client to connect.
+            ConnectorFragment.attachTo(this, mViewModel.getGoogleApiClient());
+        }
     }
 
     @Override
@@ -150,8 +158,7 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
     public void onGoogleApiConnectionFailed(ConnectionResult connectionResult) {
         if (connectionResult.hasResolution()) {
             try {
-                connectionResult.startResolutionForResult(this,
-                        R.integer.connection_resolution_request_code);
+                connectionResult.startResolutionForResult(this, REQUEST_RESOLVE_CONNECTION);
             } catch (SendIntentException e) {
                 Log.e(TAG, "Google API connection failed. " + connectionResult, e);
             }
@@ -162,7 +169,7 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == R.integer.connection_resolution_request_code) {
+        if (requestCode == REQUEST_RESOLVE_CONNECTION) {
             if (resultCode == RESULT_OK) {
                 // try to reconnect
                 ConnectorFragment.connect(this);

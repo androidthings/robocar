@@ -15,17 +15,18 @@
  */
 package com.example.androidthings.controllablething;
 
-import android.graphics.Color;
 import android.support.annotation.IntDef;
 import android.util.Log;
-import android.util.SparseArray;
 
+import com.example.androidthings.controllablething.shared.model.AdvertisingInfo.LedColor;
 import com.google.android.things.pio.Gpio;
 import com.google.android.things.pio.PeripheralManagerService;
 
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.HashMap;
+import java.util.Map;
 
 public class TricolorLed implements AutoCloseable {
 
@@ -44,27 +45,28 @@ public class TricolorLed implements AutoCloseable {
     @Retention(RetentionPolicy.SOURCE)
     public @interface Tricolor{}
 
-    private static final SparseArray<String> COLOR_NAME_MAP;
+    private static final Map<LedColor, Integer> MAP;
     static {
-        COLOR_NAME_MAP = new SparseArray<>(7);
-        COLOR_NAME_MAP.append(1, "red");
-        COLOR_NAME_MAP.append(2, "green");
-        COLOR_NAME_MAP.append(3, "yellow");
-        COLOR_NAME_MAP.append(4, "blue");
-        COLOR_NAME_MAP.append(5, "magenta");
-        COLOR_NAME_MAP.append(6, "cyan");
-        COLOR_NAME_MAP.append(7, "white");
+        MAP = new HashMap<>();
+        MAP.put(LedColor.RED, RED);
+        MAP.put(LedColor.GREEN, GREEN);
+        MAP.put(LedColor.YELLOW, YELLOW);
+        MAP.put(LedColor.BLUE, BLUE);
+        MAP.put(LedColor.MAGENTA, MAGENTA);
+        MAP.put(LedColor.CYAN, CYAN);
+        MAP.put(LedColor.WHITE, WHITE);
+    }
+
+    public static @Tricolor int ledColorToTricolor(LedColor color) {
+        Integer v = MAP.get(color);
+        return v == null ? OFF : v;
     }
 
     private Gpio mGpioRed;
     private Gpio mGpioGreen;
     private Gpio mGpioBlue;
 
-    private int mColor = Color.BLACK;
-
-    public static String getColorName(@Tricolor int color) {
-        return COLOR_NAME_MAP.get(color);
-    }
+    private @Tricolor int mColor = OFF;
 
     public TricolorLed(String redPin, String greenPin, String bluePin) {
         PeripheralManagerService pioService = new PeripheralManagerService();

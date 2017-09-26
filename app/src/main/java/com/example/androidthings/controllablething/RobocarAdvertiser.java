@@ -15,6 +15,8 @@
  */
 package com.example.androidthings.controllablething;
 
+import android.arch.lifecycle.LiveData;
+import android.arch.lifecycle.MutableLiveData;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -40,13 +42,19 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
     private static final String TAG = "RobocarAdvertiser";
 
     private AdvertisingInfo mAdvertisingInfo;
-    private boolean mIsAdvertising = false;
 
     private CompanionEndpoint mCompanionEndpoint;
+
+    private MutableLiveData<Boolean> mAdvertisingLiveData;
+    private MutableLiveData<CompanionEndpoint> mCompanionLiveData;
 
     public RobocarAdvertiser(GoogleApiClient client) {
         super(client);
         client.registerConnectionCallbacks(this);
+
+        mAdvertisingLiveData = new MutableLiveData<>();
+        mAdvertisingLiveData.setValue(false);
+        mCompanionLiveData = new MutableLiveData<>();
     }
 
     public void setAdvertisingInfo(AdvertisingInfo info) {
@@ -59,21 +67,34 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
         }
     }
 
-    public boolean isAdvertising() {
-        return mIsAdvertising;
+    // For observers
+
+    public LiveData<Boolean> getAdvertisingLiveData() {
+        return mAdvertisingLiveData;
     }
 
+    public LiveData<CompanionEndpoint> getCompanionLiveData() {
+        return mCompanionLiveData;
+    }
+
+    // Advertising
+
     public final void startAdvertising() {
-        if (mIsAdvertising) {
-            Log.d(TAG, "Already advertising");
+        if (!mGoogleApiClient.isConnected()) {
+            Log.d(TAG, "Google Api Client not connected");
             return;
         }
         if (mAdvertisingInfo == null) {
             Log.d(TAG, "Can't start advertising, no advertising info.");
             return;
         }
+        if (mAdvertisingLiveData.getValue()) {
+            Log.d(TAG, "Already advertising");
+            return;
+        }
+
         // Pre-emptively set this so the check above catches calls while we wait for a result.
-        mIsAdvertising = true;
+        mAdvertisingLiveData.setValue(true);
         Nearby.Connections.startAdvertising(mGoogleApiClient, mAdvertisingInfo.getAdvertisingName(),
                 SERVICE_ID, mLifecycleCallback, new AdvertisingOptions(STRATEGY))
                 .setResultCallback(new ResultCallback<Connections.StartAdvertisingResult>() {
@@ -82,19 +103,20 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
                         Status status = startAdvertisingResult.getStatus();
                         if (status.isSuccess()) {
                             Log.d(TAG, "Advertising started.");
-                            mIsAdvertising = true;
+                            mAdvertisingLiveData.setValue(true);
                         } else {
                             Log.d(TAG, String.format("Failed to start advertising. %d, %s",
                                     status.getStatusCode(), status.getStatusMessage()));
-                            mIsAdvertising = false;
+                            // revert state
+                            mAdvertisingLiveData.setValue(false);
                         }
                     }
                 });
     }
 
     public final void stopAdvertising() {
-        if (mIsAdvertising) {
-            mIsAdvertising = false;
+        if (mAdvertisingLiveData.getValue()) {
+            mAdvertisingLiveData.setValue(false);
             // if we're not connected, we should already have lost advertising
             if (mGoogleApiClient.isConnected()) {
                 Nearby.Connections.stopAdvertising(mGoogleApiClient);
@@ -102,7 +124,7 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
         }
     }
 
-    // GoogleApiClient connection callbacks
+    // GoogleApiClient connection
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
@@ -115,7 +137,7 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
         disconnectCompanion();
     }
 
-    // Nearby connection callbacks
+    // Nearby connection
 
     @Override
     protected void onNearbyConnectionInitiated(final String endpointId,
@@ -151,6 +173,7 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
         super.onNearbyConnected(endpointId, connectionResolution);
         stopAdvertising();
         mRemoteEndpointId = endpointId;
+        mCompanionLiveData.setValue(mCompanionEndpoint);
     }
 
     @Override
@@ -177,6 +200,7 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
     private void clearCompanionEndpoint() {
         mCompanionEndpoint = null;
         mRemoteEndpointId = null;
+        mCompanionLiveData.setValue(null);
     }
 
     private void disconnectCompanion() {

@@ -16,6 +16,7 @@
 
 package com.example.androidthings.controllablething.shared;
 
+import android.content.Context;
 import android.util.Log;
 
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -56,6 +57,12 @@ public abstract class NearbyConnectionManager {
             }
         }
     };
+
+    public static GoogleApiClient createNearbyApiClient(Context context) {
+        return new GoogleApiClient.Builder(context.getApplicationContext())
+                .addApi(Nearby.CONNECTIONS_API)
+                .build();
+    }
 
     public NearbyConnectionManager(GoogleApiClient client) {
         mGoogleApiClient = client;

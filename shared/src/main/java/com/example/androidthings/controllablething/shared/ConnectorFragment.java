@@ -17,16 +17,21 @@ package com.example.androidthings.controllablething.shared;
 
 
 import android.Manifest;
-import android.app.Activity;
-import android.app.Fragment;
-import android.app.FragmentManager;
+import android.arch.lifecycle.Lifecycle.Event;
+import android.arch.lifecycle.Lifecycle.State;
+import android.arch.lifecycle.LifecycleObserver;
+import android.arch.lifecycle.OnLifecycleEvent;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentManager;
 import android.support.v4.content.ContextCompat;
 
+import com.example.androidthings.controllablething.shared.lifecycle.ConfigResistantObserver;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
@@ -38,8 +43,8 @@ import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListe
  * changes, so there won't be spurious disconnecting and reconnecting when the user does
  * something like rotate the screen.
  * <br/><br/>
- * Usage: call {@link #attachTo(Activity, GoogleApiClient)} from your Activity. You need not check
- * that there is already one of these attached.
+ * Usage: call {@link #attachTo(FragmentActivity, GoogleApiClient)} from your Activity. You need not
+ * check that there is already one of these attached.
  */
 public class ConnectorFragment extends Fragment implements ConnectionCallbacks,
         OnConnectionFailedListener {
@@ -47,9 +52,33 @@ public class ConnectorFragment extends Fragment implements ConnectionCallbacks,
     private static final String FRAGMENT_TAG =
             "com.example.androidthings.controllablething.shared.ConnectorFragment";
 
+    private static final int REQUEST_PERMISSIONS = 1;
+
     private GoogleApiClient mGoogleApiClient;
     private ConnectorCallbacks mCallbacks;
-    private LifecycleWatcher mLifecycleWatcher;
+    private LifecycleObserver mLifecycleObserver = new ConfigResistantObserver() {
+        @Override
+        protected void onReallyStart() {
+            connect();
+        }
+
+        @Override
+        protected void onReallyStop() {
+            disconnect();
+        }
+
+        @OnLifecycleEvent(Event.ON_CREATE)
+        public void create() {
+            mGoogleApiClient.registerConnectionCallbacks(ConnectorFragment.this);
+            mGoogleApiClient.registerConnectionFailedListener(ConnectorFragment.this);
+        }
+
+        @OnLifecycleEvent(Event.ON_DESTROY)
+        public void destroy() {
+            mGoogleApiClient.unregisterConnectionCallbacks(ConnectorFragment.this);
+            mGoogleApiClient.unregisterConnectionFailedListener(ConnectorFragment.this);
+        }
+    };
 
     public interface ConnectorCallbacks {
         void onGoogleApiConnected(Bundle bundle);
@@ -57,8 +86,8 @@ public class ConnectorFragment extends Fragment implements ConnectionCallbacks,
         void onGoogleApiConnectionFailed(ConnectionResult connectionResult);
     }
 
-    public static void attachTo(Activity activity, GoogleApiClient client) {
-        FragmentManager fm = activity.getFragmentManager();
+    public static void attachTo(FragmentActivity activity, GoogleApiClient client) {
+        FragmentManager fm = activity.getSupportFragmentManager();
         ConnectorFragment fragment = get(fm);
         if (fragment == null) {
             fragment = newInstance(client);
@@ -66,8 +95,8 @@ public class ConnectorFragment extends Fragment implements ConnectionCallbacks,
         }
     }
 
-    public static void connect(Activity activity) {
-        ConnectorFragment fragment = get(activity.getFragmentManager());
+    public static void connect(FragmentActivity activity) {
+        ConnectorFragment fragment = get(activity.getSupportFragmentManager());
         if (fragment != null) {
             fragment.connect();
         }
@@ -109,44 +138,12 @@ public class ConnectorFragment extends Fragment implements ConnectionCallbacks,
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setRetainInstance(true);
-
-        mGoogleApiClient.registerConnectionCallbacks(this);
-        mGoogleApiClient.registerConnectionFailedListener(this);
-
-        mLifecycleWatcher = new LifecycleWatcher() {
-            @Override
-            protected void onActive() {
-                connect();
-            }
-
-            @Override
-            protected void onInactive() {
-                disconnect();
-            }
-        };
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        mLifecycleWatcher.start();
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-        mLifecycleWatcher.stop();
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        mGoogleApiClient.unregisterConnectionCallbacks(this);
-        mGoogleApiClient.unregisterConnectionFailedListener(this);
+        getLifecycle().addObserver(mLifecycleObserver);
     }
 
     private void connect() {
-        if (mLifecycleWatcher.isActive() && !mGoogleApiClient.isConnected()
+        if (getLifecycle().getCurrentState().isAtLeast(State.STARTED)
+                && !mGoogleApiClient.isConnected()
                 && !mGoogleApiClient.isConnecting()) {
             if (hasPermissions()) {
                 mGoogleApiClient.connect();
@@ -169,13 +166,13 @@ public class ConnectorFragment extends Fragment implements ConnectionCallbacks,
 
     private void requestPermissions() {
         super.requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-                R.integer.permissions_request_code);
+                REQUEST_PERMISSIONS);
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
             @NonNull int[] grantResults) {
-        if (requestCode == R.integer.permissions_request_code) {
+        if (requestCode == REQUEST_PERMISSIONS) {
             if (grantResults.length > 0
                     && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 connect();
