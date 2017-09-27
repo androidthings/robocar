@@ -51,6 +51,9 @@ public class CarController {
     public CarController(MotorHat motorHat, TricolorLed led) {
         mMotorHat = motorHat;
         mLed = led;
+        mHandlerThread = new HandlerThread("CarController-worker");
+        mHandlerThread.start();
+        mHandler = new Handler(mHandlerThread.getLooper());
     }
 
     public void shutDown() {
