@@ -25,59 +25,45 @@ import com.google.android.gms.nearby.connection.ConnectionLifecycleCallback;
 import com.google.android.gms.nearby.connection.ConnectionResolution;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
+import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 import com.google.android.gms.nearby.connection.Strategy;
 
 public abstract class NearbyConnectionManager {
 
     private final static String TAG = "NearbyConnectionManager";
 
-    final static String SERVICE_ID = "com.example.androidthings.controllablething";
-    final static Strategy STRATEGY = Strategy.P2P_STAR;
+    protected static final String SERVICE_ID = "com.example.androidthings.controllablething";
+    protected static final Strategy STRATEGY = Strategy.P2P_STAR;
 
-    public static final int STATE_ERROR = -1;
-    public static final int STATE_OFF = 0;
-    public static final int STATE_INITIALIZING = 1;
-    public static final int STATE_PAIRING = 2;
-    public static final int STATE_CONNECTING = 3;
-    public static final int STATE_CONNECTED = 4;
-    public static final int STATE_SUSPENDED = 5;
+    protected final GoogleApiClient mGoogleApiClient;
+    protected String mRemoteEndpointId;
 
-    private int mState = STATE_OFF;
-
-    GoogleApiClient mGoogleApiClient;
-    String remoteEndpointId;
-
-    ConnectionLifecycleCallback mLifecycleCallback;
+    protected ConnectionLifecycleCallback mLifecycleCallback;
     private PayloadCallback mPayloadListener;
-    private ConnectionStateListener mConnectionStateListener;
+    protected PayloadCallback mInternalPayloadListener = new PayloadCallback() {
+        @Override
+        public void onPayloadReceived(String endpointId, Payload payload) {
+            if (mPayloadListener != null) {
+                mPayloadListener.onPayloadReceived(endpointId, payload);
+            }
+        }
 
-    public interface ConnectionStateListener {
+        @Override
+        public void onPayloadTransferUpdate(String endpointId,
+                PayloadTransferUpdate payloadTransferUpdate) {
+            if (mPayloadListener != null) {
+                mPayloadListener.onPayloadTransferUpdate(endpointId, payloadTransferUpdate);
+            }
+        }
+    };
 
-        void onConnectionStateChanged(int oldState, int newState);
-    }
-
-    NearbyConnectionManager(GoogleApiClient client, PayloadCallback payloadListener) {
-        this(client, payloadListener, null);
-    }
-
-    NearbyConnectionManager(GoogleApiClient client, PayloadCallback payloadListener,
-            ConnectionStateListener connectionStateListener) {
+    public NearbyConnectionManager(GoogleApiClient client) {
         mGoogleApiClient = client;
-        mPayloadListener = payloadListener;
-        mConnectionStateListener = connectionStateListener;
-        initializeLifecycleCallback();
-    }
-
-    private void initializeLifecycleCallback() {
         mLifecycleCallback = new ConnectionLifecycleCallback() {
             @Override
             public void onConnectionInitiated(String endpointId, ConnectionInfo connectionInfo) {
                 Log.d(TAG, "onConnectionInitiated: " + endpointId);
-                // TODO companion should ask user for confirmation?
-                Nearby.Connections.acceptConnection(mGoogleApiClient, endpointId, mPayloadListener);
-                remoteEndpointId = endpointId;
-                setState(STATE_CONNECTING);
-                onNearbyConnectionInitiated(endpointId);
+                onNearbyConnectionInitiated(endpointId, connectionInfo);
             }
 
             @Override
@@ -90,51 +76,40 @@ public abstract class NearbyConnectionManager {
                 } else {
                     Log.d(TAG, "onConnectionResult: Not connected :( " + endpointId);
                     onNearbyConnectionRejected(endpointId);
-                    setState(STATE_PAIRING);
                 }
             }
 
             @Override
             public void onDisconnected(String endpointId) {
                 Log.d(TAG, "Nearby disconnected: " + endpointId);
-                remoteEndpointId = null;
+                mRemoteEndpointId = null;
                 onNearbyDisconnected(endpointId);
             }
         };
     }
 
-    protected void setState(int state) {
-        if (mState != state) {
-            int oldState = mState;
-            mState = state;
-            if (mConnectionStateListener != null) {
-                mConnectionStateListener.onConnectionStateChanged(oldState, state);
-            }
-        }
+    public void setPayloadListener(PayloadCallback listener) {
+        mPayloadListener = listener;
     }
 
     // Nearby API connection callbacks
 
-    protected void onNearbyConnectionInitiated(String endpointId) {}
+    protected void onNearbyConnectionInitiated(String endpointId, ConnectionInfo connectionInfo) {}
 
     protected void onNearbyConnectionRejected(String endpointId) {}
 
     protected void onNearbyConnected(String endpointId, ConnectionResolution connectionResolution) {
-        setState(STATE_CONNECTED);
+        Log.d(TAG, "Connected to " + endpointId);
     }
 
     protected void onNearbyDisconnected(String endpointId) {
-        setState(STATE_PAIRING);
+        Log.d(TAG, "Disconnected from " + endpointId);
     }
 
     // end of callbacks
 
-    public void connect() {
-        setState(STATE_INITIALIZING);
-    }
-
-    public void disconnect() {
-        setState(STATE_OFF);
+    public void disconnectFromEndpoint(String endpointId) {
+        Nearby.Connections.disconnectFromEndpoint(mGoogleApiClient, endpointId);
     }
 
     public void sendData(int data) {
@@ -142,11 +117,14 @@ public abstract class NearbyConnectionManager {
     }
 
     public void sendData(byte[] bytes) {
+        if (mRemoteEndpointId == null) {
+            throw new IllegalStateException("Remote endpoint is null");
+        }
         if (bytes == null || bytes.length == 0) {
             Log.d(TAG, "sendData: Empty byte array!");
             return;
         }
-        Nearby.Connections.sendPayload(mGoogleApiClient, remoteEndpointId,
+        Nearby.Connections.sendPayload(mGoogleApiClient, mRemoteEndpointId,
                 Payload.fromBytes(bytes));
     }
 }

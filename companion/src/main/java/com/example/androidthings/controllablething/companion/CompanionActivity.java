@@ -29,9 +29,6 @@ import com.example.androidthings.controllablething.shared.CarCommands;
 import com.example.androidthings.controllablething.shared.ConnectorFragment;
 import com.example.androidthings.controllablething.shared.ConnectorFragment.ConnectorCallbacks;
 import com.example.androidthings.controllablething.shared.GoogleApiClientCreator;
-import com.example.androidthings.controllablething.shared.NearbyConnectionManager;
-import com.example.androidthings.controllablething.shared.NearbyConnectionManager.ConnectionStateListener;
-import com.example.androidthings.controllablething.shared.NearbyDiscoverer;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.nearby.connection.Payload;
@@ -43,34 +40,12 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
 
     private static final String TAG = "CompanionActivity";
 
-    private NearbyConnectionManager mNearbyConnectionManager;
+    private RobocarDiscoverer mNearbyDiscoverer;
 
     private SparseArray<View> mCarControlMap = new SparseArray<>(5);
     private View mActivatedControl;
     private View mErrorView;
     private TextView mLogView;
-
-    private ConnectionStateListener mConnectionStateListener = new ConnectionStateListener() {
-        @Override
-        public void onConnectionStateChanged(int oldState, int newState) {
-            switch (newState) {
-                case NearbyConnectionManager.STATE_OFF:
-                    logUi("OFF"); break;
-                case NearbyConnectionManager.STATE_ERROR:
-                    logUi("ERROR"); break;
-                case NearbyConnectionManager.STATE_INITIALIZING:
-                    logUi("INIT"); break;
-                case NearbyConnectionManager.STATE_SUSPENDED:
-                    logUi("SUSPENDED"); break;
-                case NearbyConnectionManager.STATE_PAIRING:
-                    logUi("PAIRING"); break;
-                case NearbyConnectionManager.STATE_CONNECTING:
-                    logUi("CONNECTING"); break;
-                case NearbyConnectionManager.STATE_CONNECTED:
-                    logUi("CONNECTED"); break;
-            }
-        }
-    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,8 +62,19 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
 
         GoogleApiClient client = GoogleApiClientCreator.getClient(this);
         ConnectorFragment.attachTo(this, client);
-        mNearbyConnectionManager = new NearbyDiscoverer(client, payloadListener,
-                mConnectionStateListener);
+        mNearbyDiscoverer = new RobocarDiscoverer(client);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        mNearbyDiscoverer.setPayloadListener(mPayloadListener);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        mNearbyDiscoverer.setPayloadListener(null);
     }
 
     void configureButton(int buttonId, final int command) {
@@ -98,7 +84,7 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
             button.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    mNearbyConnectionManager.sendData(command);
+                    mNearbyDiscoverer.sendData(command);
                     setActivatedControl(v);
                 }
             });
@@ -128,7 +114,7 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
         mLogView.append(text);
     }
 
-    PayloadCallback payloadListener = new PayloadCallback() {
+    PayloadCallback mPayloadListener = new PayloadCallback() {
         @Override
         public void onPayloadReceived(String s, Payload payload) {
             byte[] bytes = CarCommands.fromPayload(payload);
@@ -155,15 +141,10 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
     };
 
     @Override
-    public void onGoogleApiConnected(Bundle bundle) {
-        mNearbyConnectionManager.connect();
-    }
+    public void onGoogleApiConnected(Bundle bundle) {}
 
     @Override
-    public void onGoogleApiConnectionSuspended(int cause) {
-        mNearbyConnectionManager.disconnect();
-        disableControls();
-    }
+    public void onGoogleApiConnectionSuspended(int cause) {}
 
     @Override
     public void onGoogleApiConnectionFailed(ConnectionResult connectionResult) {

@@ -65,6 +65,10 @@ public class AdvertisingInfo {
         }
     }
 
+    public static AdvertisingInfo generateAdvertisingInfo() {
+        return new AdvertisingInfo(generateId(), generateLedSequence(), false, null);
+    }
+
     static int generateId() {
         // generate an 8 digit id
         return 1000_0000 + (new Random().nextInt(9000_0000));
@@ -89,7 +93,7 @@ public class AdvertisingInfo {
         return list;
     }
 
-    static String ledColorsToString(List<LedColor> colors) {
+    public static String ledColorsToString(List<LedColor> colors) {
         if (colors == null) {
             return "";
         }
@@ -104,7 +108,7 @@ public class AdvertisingInfo {
         return builder.toString();
     }
 
-    static List<LedColor> stringToLedColors(String input) {
+    public static List<LedColor> stringToLedColors(String input) {
         if (input == null) {
             return Collections.emptyList();
         }

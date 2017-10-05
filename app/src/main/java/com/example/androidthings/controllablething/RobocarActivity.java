@@ -25,10 +25,6 @@ import com.example.androidthings.controllablething.shared.CarCommands;
 import com.example.androidthings.controllablething.shared.ConnectorFragment;
 import com.example.androidthings.controllablething.shared.ConnectorFragment.ConnectorCallbacks;
 import com.example.androidthings.controllablething.shared.GoogleApiClientCreator;
-import com.example.androidthings.controllablething.shared.NearbyAdvertiser;
-import com.example.androidthings.controllablething.shared.NearbyConnectionManager;
-import com.example.androidthings.controllablething.shared.NearbyConnectionManager
-        .ConnectionStateListener;
 import com.example.motorhat.MotorHat;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -43,13 +39,13 @@ public class RobocarActivity extends Activity implements ConnectorCallbacks {
 
     private static final String TAG = "RobocarActivity";
 
-    private NearbyConnectionManager mNearbyConnectionManager;
+    private RobocarAdvertiser mNearbyAdvertiser;
 
     private MotorHat mMotorHat;
     private TricolorLed mLed;
     private CarController mCarController;
 
-    PayloadCallback payloadListener = new PayloadCallback() {
+    PayloadCallback mPayloadListener = new PayloadCallback() {
         @Override
         public void onPayloadReceived(String s, Payload payload) {
             byte[] bytes = CarCommands.fromPayload(payload);
@@ -63,7 +59,7 @@ public class RobocarActivity extends Activity implements ConnectorCallbacks {
             if (mCarController != null && mCarController.onCarCommand(command)) {
                 response = command;
             }
-            mNearbyConnectionManager.sendData(response);
+            mNearbyAdvertiser.sendData(response);
             if (response == CarCommands.ERROR) {
                 // TODO flash red
             }
@@ -71,39 +67,6 @@ public class RobocarActivity extends Activity implements ConnectorCallbacks {
 
         @Override
         public void onPayloadTransferUpdate(String s, PayloadTransferUpdate payloadTransferUpdate) {
-        }
-    };
-
-    private ConnectionStateListener mConnectionStateListener = new ConnectionStateListener() {
-        @Override
-        public void onConnectionStateChanged(int oldState, int newState) {
-            if (mCarController == null) {
-                return;
-            }
-            switch (newState) {
-                case NearbyConnectionManager.STATE_OFF:
-                    mLed.setColor(TricolorLed.OFF);
-                    mCarController.setLedColor(TricolorLed.OFF);
-                    break;
-                case NearbyConnectionManager.STATE_ERROR:
-                    mCarController.setLedColor(TricolorLed.RED);
-                    break;
-                case NearbyConnectionManager.STATE_INITIALIZING:
-                    mCarController.setLedColor(TricolorLed.YELLOW);
-                    break;
-                case NearbyConnectionManager.STATE_SUSPENDED:
-                    mCarController.setLedColor(TricolorLed.YELLOW);
-                    break;
-                case NearbyConnectionManager.STATE_PAIRING:
-                    mCarController.setLedColor(TricolorLed.MAGENTA); // TODO flash red/blue
-                    break;
-                case NearbyConnectionManager.STATE_CONNECTING:
-//                    mCarController.setLedColor(TricolorLed.CYAN); // TODO flash blue/green
-                    break;
-                case NearbyConnectionManager.STATE_CONNECTED:
-                    mCarController.setLedColor(TricolorLed.GREEN);
-                    break;
-            }
         }
     };
 
@@ -123,8 +86,20 @@ public class RobocarActivity extends Activity implements ConnectorCallbacks {
 
         GoogleApiClient client = GoogleApiClientCreator.getClient(this);
         ConnectorFragment.attachTo(this, client);
-        mNearbyConnectionManager = new NearbyAdvertiser(client, payloadListener,
-                mConnectionStateListener, mCarController.getAdvertisingName());
+        mNearbyAdvertiser = new RobocarAdvertiser(client);
+        mNearbyAdvertiser.setAdvertisingInfo(AdvertisingInfoStore.getInstance(this).get());
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        mNearbyAdvertiser.setPayloadListener(mPayloadListener);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        mNearbyAdvertiser.setPayloadListener(null);
     }
 
     @Override
@@ -184,14 +159,10 @@ public class RobocarActivity extends Activity implements ConnectorCallbacks {
     }
 
     @Override
-    public void onGoogleApiConnected(Bundle bundle) {
-        mNearbyConnectionManager.connect();
-    }
+    public void onGoogleApiConnected(Bundle bundle) {}
 
     @Override
-    public void onGoogleApiConnectionSuspended(int cause) {
-        mNearbyConnectionManager.disconnect();
-    }
+    public void onGoogleApiConnectionSuspended(int cause) {}
 
     @Override
     public void onGoogleApiConnectionFailed(ConnectionResult connectionResult) {
