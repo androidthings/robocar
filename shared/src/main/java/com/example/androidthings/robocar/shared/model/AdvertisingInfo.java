@@ -16,6 +16,7 @@
 package com.example.androidthings.robocar.shared.model;
 
 import android.graphics.Color;
+import android.text.TextUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -145,6 +146,8 @@ public class AdvertisingInfo {
     public final boolean mIsPaired;
     public final String mPairToken;
 
+    private int mHashcode; // cache hashcode
+
     public AdvertisingInfo(int robocarId, List<LedColor> ledSequence, boolean isPaired,
             String pairToken) {
         mRobocarId = robocarId;
@@ -167,5 +170,33 @@ public class AdvertisingInfo {
                     .append(mPairToken);
         }
         return builder.toString();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || !obj.getClass().equals(AdvertisingInfo.class)) {
+            return false;
+        }
+        AdvertisingInfo other = (AdvertisingInfo) obj;
+        return mRobocarId == other.mRobocarId
+                && mLedSequence.equals(other.mLedSequence)
+                && TextUtils.equals(mPairToken, other.mPairToken);
+    }
+
+    @Override
+    public int hashCode() {
+        int h = mHashcode;
+        if (h == 0) {
+            h = mRobocarId;
+            h *= 1000003;
+            h ^= mLedSequence.hashCode();
+            h *= 1000003;
+            h ^= mPairToken == null ? 0 : mPairToken.hashCode();
+            mHashcode = h;
+        }
+        return mHashcode;
     }
 }

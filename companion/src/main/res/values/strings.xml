@@ -16,4 +16,7 @@
 
 <resources>
     <string name="app_name">Car Companion</string>
+
+    <string name="robocar_discoverer_empty">Searching for nearby Robocars...</string>
+    <string name="robocar_name">Robocar %d</string>
 </resources>
