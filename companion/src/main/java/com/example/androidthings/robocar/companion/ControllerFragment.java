@@ -15,6 +15,7 @@
  */
 package com.example.androidthings.robocar.companion;
 
+import android.arch.lifecycle.Observer;
 import android.arch.lifecycle.ViewModelProviders;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -22,10 +23,14 @@ import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.example.androidthings.robocar.companion.CompanionViewModel.NavigationState;
 import com.example.androidthings.robocar.shared.CarCommands;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
@@ -44,6 +49,12 @@ public class ControllerFragment extends Fragment {
     private CompanionViewModel mViewModel;
     private RobocarDiscoverer mRobocarDiscoverer;
     private RobocarConnection mRobocarConnection;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
+    }
 
     @Nullable
     @Override
@@ -70,6 +81,18 @@ public class ControllerFragment extends Fragment {
         super.onActivityCreated(savedInstanceState);
         mViewModel = ViewModelProviders.of(getActivity()).get(CompanionViewModel.class);
         mRobocarDiscoverer = mViewModel.getRobocarDiscoverer();
+
+        mRobocarDiscoverer.getRobocarConnectionLiveData().observe(this,
+                new Observer<RobocarConnection>() {
+                    @Override
+                    public void onChanged(@Nullable RobocarConnection connection) {
+                        mRobocarConnection = connection;
+                        if (connection == null || !connection.isConnected()) {
+                            // We're not connected, so go back to discovery UI
+                            mViewModel.navigateTo(NavigationState.DISCOVERY_UI);
+                        }
+                    }
+                });
     }
 
     @Override
@@ -82,6 +105,27 @@ public class ControllerFragment extends Fragment {
     public void onStop() {
         super.onStop();
         mRobocarDiscoverer.setPayloadListener(null);
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        inflater.inflate(R.menu.controller, menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.action_disconnect) {
+            disconnect();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    public void disconnect() {
+        if (mRobocarConnection != null) {
+            mRobocarConnection.disconnect();
+        }
     }
 
     void configureButton(View view, int buttonId, final byte command) {
@@ -105,12 +149,6 @@ public class ControllerFragment extends Fragment {
         mActivatedControl = view;
         if (mActivatedControl != null) {
             mActivatedControl.setActivated(true);
-        }
-    }
-
-    private void disableControls() {
-        for (int i = 0; i < mCarControlMap.size(); i++) {
-            mCarControlMap.valueAt(i).setEnabled(false);
         }
     }
 

@@ -17,6 +17,9 @@ package com.example.androidthings.robocar.companion;
 
 import android.app.Application;
 import android.arch.lifecycle.AndroidViewModel;
+import android.arch.lifecycle.LiveData;
+import android.arch.lifecycle.MutableLiveData;
+import android.support.annotation.IntDef;
 
 import com.example.androidthings.robocar.shared.NearbyConnectionManager;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -24,13 +27,24 @@ import com.google.android.gms.common.api.GoogleApiClient;
 
 public class CompanionViewModel extends AndroidViewModel {
 
+    @IntDef({NavigationState.DISCOVERY_UI, NavigationState.CONTROLLER_UI})
+    public @interface NavigationState {
+        int DISCOVERY_UI = 1;
+        int CONTROLLER_UI = 2;
+    }
+
     private final GoogleApiClient mGoogleApiClient;
     private final RobocarDiscoverer mRobocarDiscoverer;
+
+    private final MutableLiveData<Integer> mNavigationState;
 
     public CompanionViewModel(Application application) {
         super(application);
         mGoogleApiClient = NearbyConnectionManager.createNearbyApiClient(application);
         mRobocarDiscoverer = new RobocarDiscoverer(mGoogleApiClient);
+
+        mNavigationState = new MutableLiveData<>();
+        mNavigationState.setValue(NavigationState.DISCOVERY_UI);
     }
 
     public GoogleApiClient getGoogleApiClient() {
@@ -39,5 +53,13 @@ public class CompanionViewModel extends AndroidViewModel {
 
     public RobocarDiscoverer getRobocarDiscoverer() {
         return mRobocarDiscoverer;
+    }
+
+    public LiveData<Integer> getNavigationStateLiveData() {
+        return mNavigationState;
+    }
+
+    public void navigateTo(@NavigationState int state) {
+        mNavigationState.setValue(state);
     }
 }

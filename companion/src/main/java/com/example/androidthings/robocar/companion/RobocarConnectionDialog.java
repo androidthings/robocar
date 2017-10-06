@@ -28,6 +28,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.TextView;
 
+import com.example.androidthings.robocar.companion.CompanionViewModel.NavigationState;
 import com.example.androidthings.robocar.companion.RobocarConnection.ConnectionState;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
 
@@ -107,10 +108,12 @@ public class RobocarConnectionDialog extends DialogFragment implements OnClickLi
         if (state == ConnectionState.CONNECTED) {
             // TODO save Robocar info for automatic reconnect
             dismiss();
+            mViewModel.navigateTo(NavigationState.CONTROLLER_UI);
             return;
         } else if (state == ConnectionState.NOT_CONNECTED) {
             // TODO trigger a Snackbar to show error message based on the prior state
             dismiss();
+            mViewModel.navigateTo(NavigationState.DISCOVERY_UI);
             return;
         }
 

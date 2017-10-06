@@ -15,7 +15,7 @@
   -->
 
 <resources>
-    <string name="app_name">Car Companion</string>
+    <string name="app_name">Robocar Companion</string>
 
     <string name="robocar_discoverer_empty">Searching for nearby Robocars...</string>
     <string name="robocar_name">Robocar %d</string>
@@ -28,4 +28,6 @@
     </string>
     <string name="dialog_button_auth_confirm">Connect</string>
     <string name="dialog_button_auth_cancel">@android:string/cancel</string>
+
+    <string name="action_disconnect">Disconnect</string>
 </resources>

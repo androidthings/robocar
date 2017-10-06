@@ -26,12 +26,15 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.example.androidthings.robocar.companion.CompanionViewModel.NavigationState;
 import com.example.androidthings.robocar.shared.model.RobocarEndpoint;
 
 import java.util.List;
 
 
 public class RobocarDiscoveryFragment extends Fragment {
+
+    private static final String FRAGMENT_TAG_AUTH_DIALOG = "fragment.robocar_auth_dialog";
 
     private RecyclerView mRecyclerView;
     private View mEmptyView;
@@ -71,6 +74,21 @@ public class RobocarDiscoveryFragment extends Fragment {
                         updateList(list);
                     }
                 });
+
+        discoverer.getRobocarConnectionLiveData().observe(this, new Observer<RobocarConnection>() {
+            @Override
+            public void onChanged(@Nullable RobocarConnection connection) {
+                clearAuthDialog();
+                if (connection != null) {
+                    if (connection.isConnected()) {
+                        // Advance to controller UI
+                        mViewModel.navigateTo(NavigationState.CONTROLLER_UI);
+                    } else {
+                        showAuthDialog();
+                    }
+                }
+            }
+        });
     }
 
     private void updateList(List<RobocarEndpoint> list) {
@@ -78,5 +96,17 @@ public class RobocarDiscoveryFragment extends Fragment {
         mEmptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
         mRecyclerView.setVisibility(empty ? View.GONE :  View.VISIBLE);
         mAdapter.setItems(list);
+    }
+
+    private void clearAuthDialog() {
+        Fragment f = getFragmentManager().findFragmentByTag(FRAGMENT_TAG_AUTH_DIALOG);
+        if (f != null) {
+            getFragmentManager().beginTransaction().remove(f).commit();
+        }
+    }
+
+    private void showAuthDialog() {
+        RobocarConnectionDialog dialog = new RobocarConnectionDialog();
+        dialog.show(getFragmentManager(), FRAGMENT_TAG_AUTH_DIALOG);
     }
 }
