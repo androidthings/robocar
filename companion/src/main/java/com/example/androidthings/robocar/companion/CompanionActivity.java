@@ -22,17 +22,10 @@ import android.content.IntentSender.SendIntentException;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.util.SparseArray;
-import android.view.View;
-import android.widget.TextView;
 
-import com.example.androidthings.robocar.shared.CarCommands;
 import com.example.androidthings.robocar.shared.ConnectorFragment;
 import com.example.androidthings.robocar.shared.ConnectorFragment.ConnectorCallbacks;
 import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.nearby.connection.Payload;
-import com.google.android.gms.nearby.connection.PayloadCallback;
-import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
 
 
 public class CompanionActivity extends AppCompatActivity implements ConnectorCallbacks {
@@ -41,27 +34,13 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
 
     private static final int REQUEST_RESOLVE_CONNECTION = 1;
 
-    private RobocarDiscoverer mNearbyDiscoverer;
-
-    private SparseArray<View> mCarControlMap = new SparseArray<>(5);
-    private View mActivatedControl;
-    private View mErrorView;
-    private TextView mLogView;
-
     private CompanionViewModel mViewModel;
+    private RobocarDiscoverer mNearbyDiscoverer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_companion);
-        mErrorView = findViewById(R.id.error);
-        mLogView = findViewById(R.id.log_text);
-
-        configureButton(R.id.btn_forward, CarCommands.GO_FORWARD);
-        configureButton(R.id.btn_back, CarCommands.GO_BACK);
-        configureButton(R.id.btn_left, CarCommands.TURN_LEFT);
-        configureButton(R.id.btn_right, CarCommands.TURN_RIGHT);
-        configureButton(R.id.btn_stop, CarCommands.STOP);
 
         mViewModel = ViewModelProviders.of(this).get(CompanionViewModel.class);
         mNearbyDiscoverer = mViewModel.getRobocarDiscoverer();
@@ -72,81 +51,6 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
             ConnectorFragment.attachTo(this, mViewModel.getGoogleApiClient());
         }
     }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-        mNearbyDiscoverer.setPayloadListener(mPayloadListener);
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        mNearbyDiscoverer.setPayloadListener(null);
-    }
-
-    void configureButton(int buttonId, final int command) {
-        View button = findViewById(buttonId);
-        if (button != null) {
-            mCarControlMap.append(command, button);
-            button.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    mNearbyDiscoverer.sendData(command);
-                    setActivatedControl(v);
-                }
-            });
-        }
-    }
-
-    private void setActivatedControl(View view) {
-        if (mActivatedControl != null && mActivatedControl != view) {
-            mActivatedControl.setActivated(false);
-        }
-        mActivatedControl = view;
-        if (mActivatedControl != null) {
-            mActivatedControl.setActivated(true);
-        }
-    }
-
-    private void disableControls() {
-        for (int i = 0; i < mCarControlMap.size(); i++) {
-            mCarControlMap.valueAt(i).setEnabled(false);
-        }
-    }
-
-    private void logUi(String text) {
-        if (mLogView.getText().length() > 0) {
-            mLogView.append("\n");
-        }
-        mLogView.append(text);
-    }
-
-    PayloadCallback mPayloadListener = new PayloadCallback() {
-        @Override
-        public void onPayloadReceived(String s, Payload payload) {
-            byte[] bytes = CarCommands.fromPayload(payload);
-            if (bytes == null || bytes.length == 0) {
-                return;
-            }
-
-            byte command = bytes[0];
-            if (command == CarCommands.ERROR) {
-                mErrorView.setVisibility(View.VISIBLE);
-                Log.d(TAG, "onPayloadReceived: error");
-            } else {
-                mErrorView.setVisibility(View.GONE);
-                Log.d(TAG, "onPayloadReceived: " + command);
-                // activate control
-                View toActivate = mCarControlMap.get(command);
-                setActivatedControl(toActivate);
-            }
-        }
-
-        @Override
-        public void onPayloadTransferUpdate(String s, PayloadTransferUpdate payloadTransferUpdate) {
-        }
-    };
 
     @Override
     public void onGoogleApiConnected(Bundle bundle) {}
