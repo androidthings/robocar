@@ -22,11 +22,13 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
+import com.example.androidthings.robocar.companion.RobocarConnection.ConnectionState;
 import com.example.androidthings.robocar.shared.NearbyConnectionManager;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
 import com.example.androidthings.robocar.shared.model.RobocarEndpoint;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
+import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.nearby.Nearby;
@@ -47,11 +49,10 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
     private static final String TAG = "RobocarDiscoverer";
 
     private final Map<String, RobocarEndpoint> mEndpointMap = new LinkedHashMap<>();
-    private RobocarEndpoint mConnectingEndpoint;
 
     private MutableLiveData<Boolean> mDiscoveryLiveData;
     private MutableLiveData<List<RobocarEndpoint>> mRobocarEndpointsLiveData;
-    private MutableLiveData<RobocarEndpoint> mConnectedRobocarLiveData;
+    private MutableLiveData<RobocarConnection> mRobocarConnectionLiveData;
 
     // Discovery
     private final EndpointDiscoveryCallback mEndpointDiscoveryCallback =
@@ -75,7 +76,7 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
         mDiscoveryLiveData = new MutableLiveData<>();
         mDiscoveryLiveData.setValue(false);
         mRobocarEndpointsLiveData = new MutableLiveData<>();
-        mConnectedRobocarLiveData = new MutableLiveData<>();
+        mRobocarConnectionLiveData = new MutableLiveData<>();
     }
 
     // For observers
@@ -88,8 +89,8 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
         return mRobocarEndpointsLiveData;
     }
 
-    public LiveData<RobocarEndpoint> getConnectedRobocarLiveData() {
-        return mConnectedRobocarLiveData;
+    public LiveData<RobocarConnection> getRobocarConnectionLiveData() {
+        return mRobocarConnectionLiveData;
     }
 
     // Discovery
@@ -143,6 +144,7 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
     @Override
     public void onConnectionSuspended(int cause) {
         stopDiscovery();
+        clearRobocarConnection();
         clearEndpoints();
     }
 
@@ -162,7 +164,7 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
     }
 
     public void requestConnection(String endpointId) {
-        if (mConnectingEndpoint != null) {
+        if (mRobocarConnectionLiveData.getValue() != null) {
             // We're already connecting to something else
             return;
         }
@@ -172,7 +174,10 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
             return;
         }
 
-        mConnectingEndpoint = endpoint;
+        RobocarConnection connection = new RobocarConnection(endpoint, this);
+        connection.setState(ConnectionState.REQUESTING);
+        mRobocarConnectionLiveData.setValue(connection);
+
         Nearby.Connections.requestConnection(mGoogleApiClient, null, endpointId, mLifecycleCallback)
                 .setResultCallback(new ResultCallback<Status>() {
                     @Override
@@ -191,25 +196,29 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
     @Override
     protected void onNearbyConnectionInitiated(String endpointId, ConnectionInfo connectionInfo) {
         super.onNearbyConnectionInitiated(endpointId, connectionInfo);
-        if (connectionInfo.isIncomingConnection() || !mEndpointMap.containsKey(endpointId)) {
-            // neither of these should ever happen...
+        RobocarConnection connection = mRobocarConnectionLiveData.getValue();
+        if (connection != null && connection.endpointMatches(endpointId)) {
+            connection.setAuthToken(connectionInfo.getAuthenticationToken());
+            connection.setState(ConnectionState.AUTHENTICATING);
+        } else {
+            // We didn't request this connection, so reject it.
             rejectConnection(endpointId);
-            return;
         }
-        if (!isConnectingTo(endpointId)) {
-            // We're already connecting to something else
-            rejectConnection(endpointId);
-            return;
-        }
-        // TODO callback to show auth UI
     }
 
-    public void acceptConnection(final String endpointId) {
-        if (!isConnectingTo(endpointId)) {
+    private PendingResult<Status> acceptConnection(String endpointId) {
+        return Nearby.Connections.acceptConnection(mGoogleApiClient, endpointId,
+                mInternalPayloadListener);
+    }
+
+    public void acceptConnection() {
+        final RobocarConnection connection = mRobocarConnectionLiveData.getValue();
+        if (connection == null) {
             return;
         }
 
-        Nearby.Connections.acceptConnection(mGoogleApiClient, endpointId, mInternalPayloadListener)
+        connection.setState(ConnectionState.AUTH_ACCEPTED);
+        acceptConnection(connection.getEndpointId())
                 .setResultCallback(new ResultCallback<Status>() {
                     @Override
                     public void onResult(@NonNull Status status) {
@@ -218,17 +227,25 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
                         } else {
                             Log.d(TAG, String.format("Accept unsuccessful. %d %s",
                                     status.getStatusCode(), status.getStatusMessage()));
+                            // revert state
+                            connection.setState(ConnectionState.AUTHENTICATING);
                         }
                     }
                 });
     }
 
-    public void rejectConnection(final String endpointId) {
-        if (!isConnectingTo(endpointId)) {
+    private PendingResult<Status> rejectConnection(String endpointId) {
+        return Nearby.Connections.rejectConnection(mGoogleApiClient, endpointId);
+    }
+
+    public void rejectConnection() {
+        final RobocarConnection connection = mRobocarConnectionLiveData.getValue();
+        if (connection == null) {
             return;
         }
 
-        Nearby.Connections.rejectConnection(mGoogleApiClient, endpointId)
+        connection.setState(ConnectionState.AUTH_REJECTED);
+        rejectConnection(connection.getEndpointId())
                 .setResultCallback(new ResultCallback<Status>() {
                     @Override
                     public void onResult(@NonNull Status status) {
@@ -237,6 +254,7 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
                         } else {
                             Log.d(TAG, String.format("Reject unsuccessful. %d %s",
                                     status.getStatusCode(), status.getStatusMessage()));
+                            connection.setState(ConnectionState.AUTHENTICATING);
                         }
                     }
                 });
@@ -245,26 +263,41 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
     @Override
     protected void onNearbyConnected(String endpointId, ConnectionResolution connectionResolution) {
         super.onNearbyConnected(endpointId, connectionResolution);
-        stopDiscovery();
-        clearEndpoints();
+        RobocarConnection connection = mRobocarConnectionLiveData.getValue();
+        if (connection != null && connection.endpointMatches(endpointId)) {
+            connection.setState(ConnectionState.CONNECTED);
+            stopDiscovery();
+        } else {
+            // This should never happen, but let's disconnect just to be safe.
+            disconnectFromEndpoint(endpointId);
+        }
     }
 
     @Override
     protected void onNearbyDisconnected(String endpointId) {
         super.onNearbyDisconnected(endpointId);
-        if (isConnectingTo(endpointId)) {
+        RobocarConnection connection = mRobocarConnectionLiveData.getValue();
+        if (connection != null && connection.endpointMatches(endpointId)) {
             clearRobocarConnection();
             startDiscovery();
         }
     }
 
-    private boolean isConnectingTo(String endpointId) {
-        return mConnectingEndpoint != null && mConnectingEndpoint.mEndpointId.equals(endpointId);
+    public void disconnect() {
+        RobocarConnection connection = mRobocarConnectionLiveData.getValue();
+        if (connection != null && connection.isConnected()) {
+            disconnectFromEndpoint(connection.getEndpointId());
+            // We don't receive onNearbyDisconnected() from this, so clean up ourselves.
+            clearRobocarConnection();
+            startDiscovery();
+        }
     }
 
     private void clearRobocarConnection() {
-        if (mConnectingEndpoint != null) {
-            mConnectingEndpoint = null;
+        RobocarConnection connection = mRobocarConnectionLiveData.getValue();
+        if (connection != null) {
+            connection.setState(ConnectionState.NOT_CONNECTED);
+            mRobocarConnectionLiveData.setValue(null);
         }
     }
 

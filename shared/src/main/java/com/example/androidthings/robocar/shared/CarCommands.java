@@ -35,4 +35,8 @@ public class CarCommands {
         }
         return null;
     }
+
+    public static Payload toPayload(byte command) {
+        return Payload.fromBytes(new byte[]{command});
+    }
 }

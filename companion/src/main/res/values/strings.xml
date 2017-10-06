@@ -19,4 +19,13 @@
 
     <string name="robocar_discoverer_empty">Searching for nearby Robocars...</string>
     <string name="robocar_name">Robocar %d</string>
+    <string name="dialog_title_connect_to_robocar">Connect to Robocar %d</string>
+    <string name="dialog_message_requesting_connection">Requesting connection</string>
+    <string name="dialog_message_authenticating">Authenticating</string>
+    <string name="dialog_message_auth_instructions">
+        Authentication needed for Robocar %d. Make sure the LED is blinking %s.
+        \n\nIf this Robocar has a display, it should show %s.
+    </string>
+    <string name="dialog_button_auth_confirm">Connect</string>
+    <string name="dialog_button_auth_cancel">@android:string/cancel</string>
 </resources>

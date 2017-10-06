@@ -37,7 +37,6 @@ public abstract class NearbyConnectionManager {
     protected static final Strategy STRATEGY = Strategy.P2P_STAR;
 
     protected final GoogleApiClient mGoogleApiClient;
-    protected String mRemoteEndpointId;
 
     protected ConnectionLifecycleCallback mLifecycleCallback;
     private PayloadCallback mPayloadListener;
@@ -89,7 +88,6 @@ public abstract class NearbyConnectionManager {
             @Override
             public void onDisconnected(String endpointId) {
                 Log.d(TAG, "Nearby disconnected: " + endpointId);
-                mRemoteEndpointId = null;
                 onNearbyDisconnected(endpointId);
             }
         };
@@ -119,19 +117,9 @@ public abstract class NearbyConnectionManager {
         Nearby.Connections.disconnectFromEndpoint(mGoogleApiClient, endpointId);
     }
 
-    public void sendData(int data) {
-        sendData(new byte[]{(byte) data});
-    }
-
-    public void sendData(byte[] bytes) {
-        if (mRemoteEndpointId == null) {
-            throw new IllegalStateException("Remote endpoint is null");
+    public void sendData(String endpointId, Payload payload) {
+        if (mGoogleApiClient.isConnected()) {
+            Nearby.Connections.sendPayload(mGoogleApiClient, endpointId, payload);
         }
-        if (bytes == null || bytes.length == 0) {
-            Log.d(TAG, "sendData: Empty byte array!");
-            return;
-        }
-        Nearby.Connections.sendPayload(mGoogleApiClient, mRemoteEndpointId,
-                Payload.fromBytes(bytes));
     }
 }

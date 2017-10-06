@@ -23,6 +23,7 @@ import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.example.androidthings.robocar.shared.CarCommands;
 import com.example.androidthings.robocar.shared.NearbyConnectionManager;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
 import com.example.androidthings.robocar.shared.model.CompanionEndpoint;
@@ -171,9 +172,13 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
     @Override
     protected void onNearbyConnected(String endpointId, ConnectionResolution connectionResolution) {
         super.onNearbyConnected(endpointId, connectionResolution);
-        stopAdvertising();
-        mRemoteEndpointId = endpointId;
-        mCompanionLiveData.setValue(mCompanionEndpoint);
+        if (isCompanionEndpointId(endpointId)) {
+            mCompanionLiveData.setValue(mCompanionEndpoint);
+            stopAdvertising();
+            // TODO save companion data for automatic reconnect
+        } else {
+            disconnectFromEndpoint(endpointId);
+        }
     }
 
     @Override
@@ -199,7 +204,6 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
 
     private void clearCompanionEndpoint() {
         mCompanionEndpoint = null;
-        mRemoteEndpointId = null;
         mCompanionLiveData.setValue(null);
     }
 
@@ -212,5 +216,11 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
             }
         }
         clearCompanionEndpoint();
+    }
+
+    public void sendCommand(byte command) {
+        if (mCompanionEndpoint != null) {
+            sendData(mCompanionEndpoint.mEndpointId, CarCommands.toPayload(command));
+        }
     }
 }

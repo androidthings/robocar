@@ -43,6 +43,7 @@ public class ControllerFragment extends Fragment {
 
     private CompanionViewModel mViewModel;
     private RobocarDiscoverer mRobocarDiscoverer;
+    private RobocarConnection mRobocarConnection;
 
     @Nullable
     @Override
@@ -83,14 +84,14 @@ public class ControllerFragment extends Fragment {
         mRobocarDiscoverer.setPayloadListener(null);
     }
 
-    void configureButton(View view, int buttonId, final int command) {
+    void configureButton(View view, int buttonId, final byte command) {
         View button = view.findViewById(buttonId);
         if (button != null) {
             mCarControlMap.append(command, button);
             button.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    mRobocarDiscoverer.sendData(command);
+                    mRobocarConnection.sendCommand(command);
                     setActivatedControl(v);
                 }
             });

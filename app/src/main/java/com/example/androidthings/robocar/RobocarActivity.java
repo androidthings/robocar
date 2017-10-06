@@ -67,7 +67,7 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
             if (mCarController != null && mCarController.onCarCommand(command)) {
                 response = command;
             }
-            mNearbyAdvertiser.sendData(response);
+            mNearbyAdvertiser.sendCommand(response);
             if (response == CarCommands.ERROR) {
                 // TODO flash red
             }
