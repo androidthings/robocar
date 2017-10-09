@@ -23,6 +23,7 @@ import com.example.androidthings.robocar.TricolorLed.Tricolor;
 import com.example.androidthings.robocar.shared.CarCommands;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo.LedColor;
 import com.example.motorhat.MotorHat;
+import com.google.android.things.contrib.driver.ht16k33.AlphanumericDisplay;
 
 import java.io.IOException;
 import java.util.List;
@@ -44,12 +45,18 @@ public class CarController {
 
     private TricolorLed mLed;
     private LedPatternBlinker mBlinker;
+
+    private AlphanumericDisplay mDisplay;
+    private MarqueeRunnable mDisplayRunnable;
+
     private HandlerThread mHandlerThread;
     private Handler mHandler;
 
-    public CarController(MotorHat motorHat, TricolorLed led) {
+    public CarController(MotorHat motorHat, TricolorLed led, AlphanumericDisplay display) {
         mMotorHat = motorHat;
         mLed = led;
+        mDisplay = display;
+
         mHandlerThread = new HandlerThread("CarController-worker");
         mHandlerThread.start();
         mHandler = new Handler(mHandlerThread.getLooper());
@@ -183,6 +190,27 @@ public class CarController {
         }
     }
 
+    public void display(String text) {
+        clearDisplay();
+        if (mDisplay != null) {
+            mDisplayRunnable = new MarqueeRunnable(text);
+            mHandler.post(mDisplayRunnable);
+        }
+    }
+
+    private void clearDisplay() {
+        if (mDisplayRunnable != null) {
+            mDisplayRunnable.mCanceled = true; // removeCallbacks() might not catch it in time.
+            mHandler.removeCallbacks(mDisplayRunnable);
+            mDisplayRunnable = null;
+            try {
+                mDisplay.clear();
+            } catch (IOException e) {
+                Log.d(TAG, "Error clearing display");
+            }
+        }
+    }
+
     private class LedPatternBlinker implements Runnable {
 
         static final long BLINK_MS = 400L;
@@ -213,6 +241,46 @@ public class CarController {
 
                 mHandler.postDelayed(this, BLINK_MS);
             }
+        }
+    }
+
+    private class MarqueeRunnable implements Runnable {
+
+        static final long MARQUEE_DELAY_MS = 400L;
+
+        private final String mText;
+        private final int mTextSize;
+        private final int mMarqueeSize;
+        private int mIndex = 0;
+        private boolean mCanceled;
+
+        public MarqueeRunnable(String text) {
+            mText = text;
+            mTextSize = text == null ? 0 : text.length();
+            mMarqueeSize = mTextSize + 4;
+        }
+
+        @Override
+        public void run() {
+            if (mCanceled || mTextSize < 1) {
+                return;
+            }
+
+            for (int i = 0; i < 4; i++) {
+                int p = mIndex - i;
+                char c = (p < 0 || p >= mTextSize) ? ' ' : mText.charAt(p);
+                try {
+                    mDisplay.display(c, 3 - i, false);
+                } catch (IOException e) {
+                    Log.d(TAG, "Error writing to display");
+                }
+            }
+
+            if (++mIndex > mMarqueeSize) {
+                mIndex = 0;
+            }
+
+            mHandler.postDelayed(this, MARQUEE_DELAY_MS);
         }
     }
 }

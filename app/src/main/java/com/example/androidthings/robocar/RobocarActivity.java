@@ -34,6 +34,7 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
+import com.google.android.things.contrib.driver.ht16k33.AlphanumericDisplay;
 
 import java.io.IOException;
 
@@ -47,6 +48,7 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
 
     private MotorHat mMotorHat;
     private TricolorLed mLed;
+    private AlphanumericDisplay mDisplay;
     private CarController mCarController;
     private RobocarViewModel mViewModel;
 
@@ -88,10 +90,20 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
         } catch (IOException e) {
             throw new RuntimeException("Failed to create MotorHat", e);
         }
+        try {
+            mDisplay = new AlphanumericDisplay(BoardDefaults.getI2cBus());
+            mDisplay.setEnabled(true);
+            mDisplay.setBrightness(0.5f);
+            mDisplay.clear();
+        } catch (IOException e) {
+            // We may not have a display, which is OK. CarController only uses it if it's not null.
+            Log.d(TAG, "Failed to open display.");
+            mDisplay = null;
+        }
 
         String[] ledPins = BoardDefaults.getLedGpioPins();
         mLed = new TricolorLed(ledPins[0], ledPins[1], ledPins[2]);
-        mCarController = new CarController(mMotorHat, mLed);
+        mCarController = new CarController(mMotorHat, mLed, mDisplay);
 
         mViewModel = ViewModelProviders.of(this).get(RobocarViewModel.class);
         mViewModel.setAdvertisingInfo(mAdvertisingInfo);
@@ -155,6 +167,19 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
                 Log.e(TAG, "Error closing LED", e);
             } finally {
                 mLed = null;
+            }
+        }
+
+        if (mDisplay != null) {
+            try {
+                mDisplay.clear();
+                mDisplay.setBrightness(0);
+                mDisplay.setEnabled(false);
+                mDisplay.close();
+            } catch (IOException e) {
+                Log.e(TAG, "Error closing display", e);
+            } finally {
+                mDisplay = null;
             }
         }
     }
