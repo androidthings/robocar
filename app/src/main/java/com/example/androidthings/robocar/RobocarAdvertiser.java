@@ -27,6 +27,7 @@ import com.example.androidthings.robocar.shared.CarCommands;
 import com.example.androidthings.robocar.shared.NearbyConnectionManager;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
 import com.example.androidthings.robocar.shared.model.CompanionEndpoint;
+import com.example.androidthings.robocar.shared.model.DiscovererInfo;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.common.api.ResultCallback;
@@ -61,10 +62,13 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
     public void setAdvertisingInfo(AdvertisingInfo info) {
         if (mAdvertisingInfo != info) {
             disconnectCompanion();
+            boolean wasAdvertising = mAdvertisingLiveData.getValue();
             stopAdvertising();
 
             mAdvertisingInfo = info;
-            startAdvertising();
+            if (wasAdvertising) {
+                startAdvertising();
+            }
         }
     }
 
@@ -146,6 +150,13 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
         super.onNearbyConnectionInitiated(endpointId, connectionInfo);
         if (mCompanionEndpoint != null) {
             // We already have a companion trying to connect. Reject this one.
+            Nearby.Connections.rejectConnection(mGoogleApiClient, endpointId);
+            return;
+        }
+
+        DiscovererInfo info = DiscovererInfo.parse(connectionInfo.getEndpointName());
+        if (info == null) {
+            // Discoverer appears to be malformed.
             Nearby.Connections.rejectConnection(mGoogleApiClient, endpointId);
             return;
         }

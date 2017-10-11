@@ -20,7 +20,9 @@ import android.arch.lifecycle.Observer;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.Intent;
 import android.content.IntentSender.SendIntentException;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
@@ -30,6 +32,8 @@ import android.util.Log;
 import com.example.androidthings.robocar.companion.CompanionViewModel.NavigationState;
 import com.example.androidthings.robocar.shared.ConnectorFragment;
 import com.example.androidthings.robocar.shared.ConnectorFragment.ConnectorCallbacks;
+import com.example.androidthings.robocar.shared.PreferenceUtils;
+import com.example.androidthings.robocar.shared.model.DiscovererInfo;
 import com.google.android.gms.common.ConnectionResult;
 
 
@@ -50,10 +54,20 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
     private Fragment mCurrentFragment;
     private String mCurrentFragmentTag;
 
+    private DiscovererInfo mDiscovererInfo;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_companion);
+
+        // init DiscovererInfo
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        mDiscovererInfo = PreferenceUtils.loadDiscovererInfo(prefs);
+        if (mDiscovererInfo == null) {
+            mDiscovererInfo = DiscovererInfo.generateDiscoveryInfo();
+            PreferenceUtils.saveDiscovererInfo(prefs, mDiscovererInfo);
+        }
 
         mViewModel = ViewModelProviders.of(this).get(CompanionViewModel.class);
         // TODO observe things in the ViewModel
@@ -77,6 +91,7 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
             }
         }
 
+        mViewModel.getRobocarDiscoverer().setDiscovererInfo(mDiscovererInfo);
         mViewModel.getNavigationStateLiveData().observe(this, new Observer<Integer>() {
             @Override
             public void onChanged(@Nullable Integer value) {

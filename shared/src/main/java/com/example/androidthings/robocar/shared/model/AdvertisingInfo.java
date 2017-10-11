@@ -34,13 +34,9 @@ public class AdvertisingInfo {
     private static final String SEPARATOR_COLON = ":";
     private static final String SEPARATOR_HYPHEN = "-";
 
-    private static final int PAIRED = 1;
-    private static final int UNPAIRED = 0;
-
-    // Robocar:(\d{4}-\d{4}):([01]):([a-zA-Z-]+)(:(\S{5}))?
+    // Robocar:(\d{4}-\d{4}):([a-zA-Z-]+)(:(\S{5}))?
     private static final Pattern ADVERTISING_PATTERN = Pattern.compile(ROBOCAR + SEPARATOR_COLON
             + "(\\d{4}" + SEPARATOR_HYPHEN + "\\d{4})" + SEPARATOR_COLON
-            + "([" + UNPAIRED + PAIRED + "])" + SEPARATOR_COLON
             + "([a-zA-z" + SEPARATOR_HYPHEN + "]+)(" + SEPARATOR_COLON + "(\\S{5}))?"
     );
 
@@ -68,7 +64,7 @@ public class AdvertisingInfo {
     }
 
     public static AdvertisingInfo generateAdvertisingInfo() {
-        return new AdvertisingInfo(generateId(), generateLedSequence(), false, null);
+        return new AdvertisingInfo(generateId(), generateLedSequence(), null);
     }
 
     static String generateId() {
@@ -137,29 +133,27 @@ public class AdvertisingInfo {
             return null;
         }
         String id = matcher.group(1);
-        boolean isPaired = Integer.valueOf(matcher.group(2)) == PAIRED;
-        List<LedColor> colors = stringToLedColors(matcher.group(3));
-        String pairToken = matcher.group(5);
-        return new AdvertisingInfo(id, colors, isPaired, pairToken);
+        List<LedColor> colors = stringToLedColors(matcher.group(2));
+        String pairToken = matcher.group(4);
+        return new AdvertisingInfo(id, colors, pairToken);
     }
 
     public final String mRobocarId;
     public final List<LedColor> mLedSequence;
 
-    public final boolean mIsPaired;
     public final String mPairToken;
+    public final boolean mIsPaired;
 
     private int mHashcode; // cache hashcode
 
-    public AdvertisingInfo(String robocarId, List<LedColor> ledSequence, boolean isPaired,
-            String pairToken) {
+    public AdvertisingInfo(String robocarId, List<LedColor> ledSequence, String pairToken) {
         if (robocarId == null) {
             throw new IllegalArgumentException("Robocar ID cannot be null");
         }
         mRobocarId = robocarId;
         mLedSequence = Collections.unmodifiableList(ledSequence);
-        mIsPaired = isPaired;
         mPairToken = pairToken;
+        mIsPaired = !TextUtils.isEmpty(mPairToken);
     }
 
     public String getAdvertisingName() {
@@ -167,8 +161,6 @@ public class AdvertisingInfo {
         builder.append(ROBOCAR)
                 .append(SEPARATOR_COLON)
                 .append(mRobocarId)
-                .append(SEPARATOR_COLON)
-                .append(mIsPaired ? PAIRED : UNPAIRED)
                 .append(SEPARATOR_COLON)
                 .append(ledColorsToString(mLedSequence));
         if (mPairToken != null) {

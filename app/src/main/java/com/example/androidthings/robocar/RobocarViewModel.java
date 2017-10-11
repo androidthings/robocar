@@ -19,7 +19,6 @@ import android.app.Application;
 import android.arch.lifecycle.AndroidViewModel;
 
 import com.example.androidthings.robocar.shared.NearbyConnectionManager;
-import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
 import com.google.android.gms.common.api.GoogleApiClient;
 
 
@@ -40,9 +39,5 @@ public class RobocarViewModel extends AndroidViewModel {
 
     public RobocarAdvertiser getRobocarAdvertiser() {
         return mRobocarAdvertiser;
-    }
-
-    public void setAdvertisingInfo(AdvertisingInfo info) {
-        mRobocarAdvertiser.setAdvertisingInfo(info);
     }
 }

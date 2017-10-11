@@ -25,6 +25,7 @@ import android.util.Log;
 import com.example.androidthings.robocar.companion.RobocarConnection.ConnectionState;
 import com.example.androidthings.robocar.shared.NearbyConnectionManager;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
+import com.example.androidthings.robocar.shared.model.DiscovererInfo;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.common.api.PendingResult;
@@ -48,6 +49,7 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
     private static final String TAG = "RobocarDiscoverer";
 
     private final Map<String, RobocarEndpoint> mEndpointMap = new LinkedHashMap<>();
+    private DiscovererInfo mDiscovererInfo;
 
     private MutableLiveData<Boolean> mDiscoveryLiveData;
     private MutableLiveData<List<RobocarEndpoint>> mRobocarEndpointsLiveData;
@@ -76,6 +78,12 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
         mDiscoveryLiveData.setValue(false);
         mRobocarEndpointsLiveData = new MutableLiveData<>();
         mRobocarConnectionLiveData = new MutableLiveData<>();
+    }
+
+    public void setDiscovererInfo(DiscovererInfo info) {
+        // This is only checked when we request a connection, and we don't need to interrupt one
+        // already in progress.
+        mDiscovererInfo = info;
     }
 
     // For observers
@@ -177,7 +185,8 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
         connection.setState(ConnectionState.REQUESTING);
         mRobocarConnectionLiveData.setValue(connection);
 
-        Nearby.Connections.requestConnection(mGoogleApiClient, null, endpointId, mLifecycleCallback)
+        String name = mDiscovererInfo == null ? null : mDiscovererInfo.getAdvertisingName();
+        Nearby.Connections.requestConnection(mGoogleApiClient, name, endpointId, mLifecycleCallback)
                 .setResultCallback(new ResultCallback<Status>() {
                     @Override
                     public void onResult(@NonNull Status status) {

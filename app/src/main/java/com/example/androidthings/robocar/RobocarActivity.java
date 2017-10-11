@@ -18,7 +18,9 @@ package com.example.androidthings.robocar;
 
 import android.arch.lifecycle.Observer;
 import android.arch.lifecycle.ViewModelProviders;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -27,8 +29,8 @@ import android.view.KeyEvent;
 import com.example.androidthings.robocar.shared.CarCommands;
 import com.example.androidthings.robocar.shared.ConnectorFragment;
 import com.example.androidthings.robocar.shared.ConnectorFragment.ConnectorCallbacks;
+import com.example.androidthings.robocar.shared.PreferenceUtils;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
-import com.example.androidthings.robocar.shared.model.CompanionEndpoint;
 import com.example.motorhat.MotorHat;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.nearby.connection.Payload;
@@ -83,7 +85,13 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mAdvertisingInfo = AdvertisingInfoStore.getInstance(this).get();
+        // init AdvertisingInfo
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        mAdvertisingInfo = PreferenceUtils.loadAdvertisingInfo(prefs);
+        if (mAdvertisingInfo == null) {
+            mAdvertisingInfo = AdvertisingInfo.generateAdvertisingInfo();
+            PreferenceUtils.saveAdvertisingInfo(prefs, mAdvertisingInfo);
+        }
 
         try {
             mMotorHat = new MotorHat(BoardDefaults.getI2cBus());
@@ -106,9 +114,9 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
         mCarController = new CarController(mMotorHat, mLed, mDisplay);
 
         mViewModel = ViewModelProviders.of(this).get(RobocarViewModel.class);
-        mViewModel.setAdvertisingInfo(mAdvertisingInfo);
-
         mNearbyAdvertiser = mViewModel.getRobocarAdvertiser();
+
+        mNearbyAdvertiser.setAdvertisingInfo(mAdvertisingInfo);
         mNearbyAdvertiser.getAdvertisingLiveData().observe(this, new Observer<Boolean>() {
             @Override
             public void onChanged(@Nullable Boolean value) {
