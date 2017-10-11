@@ -25,7 +25,6 @@ import android.util.Log;
 import com.example.androidthings.robocar.companion.RobocarConnection.ConnectionState;
 import com.example.androidthings.robocar.shared.NearbyConnectionManager;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
-import com.example.androidthings.robocar.shared.model.RobocarEndpoint;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.common.api.PendingResult;
@@ -153,7 +152,7 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
     private void onNearbyEndpointFound(String endpointId, DiscoveredEndpointInfo endpointInfo) {
         AdvertisingInfo info = AdvertisingInfo.parseAdvertisingName(endpointInfo.getEndpointName());
         if (info != null) {
-            mEndpointMap.put(endpointId, new RobocarEndpoint(endpointId, info, null));
+            mEndpointMap.put(endpointId, new RobocarEndpoint(endpointId, info));
             onEndpointsChanged();
         }
     }

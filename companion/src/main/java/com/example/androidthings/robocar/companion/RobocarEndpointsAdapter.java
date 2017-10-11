@@ -24,7 +24,6 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
-import com.example.androidthings.robocar.shared.model.RobocarEndpoint;
 
 import java.util.List;
 

@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.example.androidthings.robocar.shared.model;
+package com.example.androidthings.robocar.companion;
+
+import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
 
 /**
  * Immutable class representing a Robocar's Nearby endpoint information.
@@ -22,9 +24,8 @@ public class RobocarEndpoint {
 
     public final String mEndpointId;
     public final AdvertisingInfo mAdvertisingInfo;
-    public final String mAuthToken;
 
-    public RobocarEndpoint(String endpointId, AdvertisingInfo advertisingInfo, String authToken) {
+    public RobocarEndpoint(String endpointId, AdvertisingInfo advertisingInfo) {
         if (endpointId == null) {
             throw new IllegalArgumentException("Endpoint ID cannot be null");
         }
@@ -33,7 +34,6 @@ public class RobocarEndpoint {
         }
         mEndpointId = endpointId;
         mAdvertisingInfo = advertisingInfo;
-        mAuthToken = authToken;
     }
 
     @Override

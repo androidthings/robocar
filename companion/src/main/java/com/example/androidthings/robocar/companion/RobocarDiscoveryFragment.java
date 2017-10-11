@@ -27,7 +27,6 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.example.androidthings.robocar.companion.CompanionViewModel.NavigationState;
-import com.example.androidthings.robocar.shared.model.RobocarEndpoint;
 
 import java.util.List;
 

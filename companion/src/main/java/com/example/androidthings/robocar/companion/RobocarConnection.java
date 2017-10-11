@@ -21,7 +21,6 @@ import android.support.annotation.IntDef;
 
 import com.example.androidthings.robocar.shared.CarCommands;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
-import com.example.androidthings.robocar.shared.model.RobocarEndpoint;
 
 /**
  * Handle for a connection to a Robocar, providing convenient methods for both authenticating the
