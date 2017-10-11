@@ -15,117 +15,44 @@
  */
 package com.example.androidthings.robocar.companion;
 
-import android.arch.lifecycle.LiveData;
-import android.arch.lifecycle.MutableLiveData;
-import android.support.annotation.IntDef;
-
-import com.example.androidthings.robocar.shared.CarCommands;
+import com.example.androidthings.robocar.shared.NearbyConnection;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
 
 /**
  * Handle for a connection to a Robocar, providing convenient methods for both authenticating the
  * connection and transmitting data through it.
  */
-public class RobocarConnection {
-
-    @IntDef({ConnectionState.NOT_CONNECTED, ConnectionState.REQUESTING,
-            ConnectionState.AUTHENTICATING, ConnectionState.AUTH_ACCEPTED,
-            ConnectionState.AUTH_REJECTED, ConnectionState.CONNECTED})
-    public @interface ConnectionState {
-        int NOT_CONNECTED = 0;
-        int REQUESTING = 1;
-        int AUTHENTICATING = 2;
-        int AUTH_ACCEPTED = 3;
-        int AUTH_REJECTED = 4;
-        int CONNECTED = 5;
-    }
+public class RobocarConnection extends NearbyConnection {
 
     private final RobocarDiscoverer mRobocarDiscoverer;
-    private final String mEndpointId;
     private final AdvertisingInfo mAdvertisingInfo;
 
-    @ConnectionState
-    private int mState;
-    private String mAuthToken;
-
-    private MutableLiveData<Integer> mStateLiveData;
-
-    public RobocarConnection(RobocarEndpoint endpoint, RobocarDiscoverer robocarDiscoverer) {
-        if (endpoint == null) {
-            throw new IllegalArgumentException("RobocarEndpoint cannot be null");
-        }
-        if (robocarDiscoverer == null) {
-            throw new IllegalArgumentException("RobocarDiscoverer cannot be null");
-        }
-        mEndpointId = endpoint.mEndpointId;
-        mAdvertisingInfo = endpoint.mAdvertisingInfo;
+    public RobocarConnection(String endpointId, AdvertisingInfo advertisingInfo,
+            RobocarDiscoverer robocarDiscoverer) {
+        super(endpointId, robocarDiscoverer);
+        mAdvertisingInfo = advertisingInfo;
         mRobocarDiscoverer = robocarDiscoverer;
-        mStateLiveData = new MutableLiveData<>();
-
-        setState(ConnectionState.NOT_CONNECTED);
-    }
-
-    public boolean endpointMatches(String endpointId) {
-        return mEndpointId.equals(endpointId);
-    }
-
-    public String getEndpointId() {
-        return mEndpointId;
     }
 
     public AdvertisingInfo getAdvertisingInfo() {
         return mAdvertisingInfo;
     }
 
-    @ConnectionState
-    public int getState() {
-        return mState;
-    }
-
-    public void setState(@ConnectionState int newState) {
-        if (mState != newState) {
-            mState = newState;
-            mStateLiveData.setValue(mState);
-        }
-    }
-
-    public boolean isConnected() {
-        return mState == ConnectionState.CONNECTED;
-    }
-
-    public LiveData<Integer> getConnectionStateLiveData() {
-        return mStateLiveData;
-    }
-
-    public String getAuthToken() {
-        return mAuthToken;
-    }
-
-    public void setAuthToken(String authToken) {
-        mAuthToken = authToken;
-    }
-
     public void accept() {
-        if (mState == ConnectionState.AUTHENTICATING) {
+        if (getState() == ConnectionState.AUTHENTICATING) {
             mRobocarDiscoverer.acceptConnection();
         }
     }
 
     public void reject() {
-        if (mState == ConnectionState.AUTHENTICATING) {
+        if (getState() == ConnectionState.AUTHENTICATING) {
             mRobocarDiscoverer.rejectConnection();
         }
     }
 
     public void disconnect() {
-        if (mState == ConnectionState.CONNECTED) {
+        if (getState() == ConnectionState.CONNECTED) {
             mRobocarDiscoverer.disconnect();
-        }
-    }
-
-    public void sendCommand(byte command) {
-        if (mState == ConnectionState.CONNECTED) {
-            mRobocarDiscoverer.sendData(mEndpointId, CarCommands.toPayload(command));
         }
     }
 }

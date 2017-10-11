@@ -191,8 +191,11 @@ public class CarController {
     }
 
     public void display(String text) {
-        clearDisplay();
         if (mDisplay != null) {
+            if (mDisplayRunnable != null && mDisplayRunnable.mText.equals(text)) {
+                return; // Avoid restarting the marquee for the same text
+            }
+            clearDisplay();
             mDisplayRunnable = new MarqueeRunnable(text);
             mHandler.post(mDisplayRunnable);
         }

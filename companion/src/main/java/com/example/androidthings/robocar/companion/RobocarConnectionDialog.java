@@ -29,7 +29,7 @@ import android.view.View.OnClickListener;
 import android.widget.TextView;
 
 import com.example.androidthings.robocar.companion.CompanionViewModel.NavigationState;
-import com.example.androidthings.robocar.companion.RobocarConnection.ConnectionState;
+import com.example.androidthings.robocar.shared.NearbyConnection.ConnectionState;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
 
 

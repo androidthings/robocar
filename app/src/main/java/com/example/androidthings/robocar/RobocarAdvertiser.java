@@ -20,13 +20,11 @@ import android.arch.lifecycle.MutableLiveData;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.text.TextUtils;
 import android.util.Log;
 
-import com.example.androidthings.robocar.shared.CarCommands;
+import com.example.androidthings.robocar.shared.NearbyConnection.ConnectionState;
 import com.example.androidthings.robocar.shared.NearbyConnectionManager;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
-import com.example.androidthings.robocar.shared.model.CompanionEndpoint;
 import com.example.androidthings.robocar.shared.model.DiscovererInfo;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
@@ -45,10 +43,8 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
 
     private AdvertisingInfo mAdvertisingInfo;
 
-    private CompanionEndpoint mCompanionEndpoint;
-
     private MutableLiveData<Boolean> mAdvertisingLiveData;
-    private MutableLiveData<CompanionEndpoint> mCompanionLiveData;
+    private MutableLiveData<CompanionConnection> mCompanionConnectionLiveData;
 
     public RobocarAdvertiser(GoogleApiClient client) {
         super(client);
@@ -56,7 +52,7 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
 
         mAdvertisingLiveData = new MutableLiveData<>();
         mAdvertisingLiveData.setValue(false);
-        mCompanionLiveData = new MutableLiveData<>();
+        mCompanionConnectionLiveData = new MutableLiveData<>();
     }
 
     public void setAdvertisingInfo(AdvertisingInfo info) {
@@ -78,8 +74,8 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
         return mAdvertisingLiveData;
     }
 
-    public LiveData<CompanionEndpoint> getCompanionLiveData() {
-        return mCompanionLiveData;
+    public LiveData<CompanionConnection> getCompanionConnectionLiveData() {
+        return mCompanionConnectionLiveData;
     }
 
     // Advertising
@@ -148,7 +144,7 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
     protected void onNearbyConnectionInitiated(final String endpointId,
             ConnectionInfo connectionInfo) {
         super.onNearbyConnectionInitiated(endpointId, connectionInfo);
-        if (mCompanionEndpoint != null) {
+        if (mCompanionConnectionLiveData.getValue() != null) {
             // We already have a companion trying to connect. Reject this one.
             Nearby.Connections.rejectConnection(mGoogleApiClient, endpointId);
             return;
@@ -162,8 +158,11 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
         }
 
         // Store the endpoint and accept.
-        mCompanionEndpoint = new CompanionEndpoint(endpointId,
-                connectionInfo.getAuthenticationToken());
+        CompanionConnection connection = new CompanionConnection(endpointId, info, this);
+        connection.setAuthToken(connectionInfo.getAuthenticationToken());
+        connection.setState(ConnectionState.AUTH_ACCEPTED);
+        mCompanionConnectionLiveData.setValue(connection);
+
         Nearby.Connections.acceptConnection(mGoogleApiClient, endpointId, mInternalPayloadListener)
                 .setResultCallback(new ResultCallback<Status>() {
                     @Override
@@ -184,8 +183,8 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
     protected void onNearbyConnected(String endpointId, ConnectionResolution connectionResolution) {
         super.onNearbyConnected(endpointId, connectionResolution);
         if (isCompanionEndpointId(endpointId)) {
-            mCompanionLiveData.setValue(mCompanionEndpoint);
             stopAdvertising();
+            mCompanionConnectionLiveData.getValue().setState(ConnectionState.CONNECTED);
             // TODO save companion data for automatic reconnect
         } else {
             disconnectFromEndpoint(endpointId);
@@ -204,34 +203,30 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
     protected void onNearbyDisconnected(String endpointId) {
         super.onNearbyDisconnected(endpointId);
         if (isCompanionEndpointId(endpointId)) {
+            mCompanionConnectionLiveData.getValue().setState(ConnectionState.NOT_CONNECTED);
             clearCompanionEndpoint();
             startAdvertising();
         }
     }
 
     private boolean isCompanionEndpointId(String id) {
-        return mCompanionEndpoint != null && TextUtils.equals(id, mCompanionEndpoint.mEndpointId);
+        CompanionConnection connection = mCompanionConnectionLiveData.getValue();
+        return connection != null && connection.endpointMatches(id);
     }
 
     private void clearCompanionEndpoint() {
-        mCompanionEndpoint = null;
-        mCompanionLiveData.setValue(null);
+        mCompanionConnectionLiveData.setValue(null);
     }
 
     private void disconnectCompanion() {
-        if (mCompanionEndpoint != null) {
+        CompanionConnection connection = mCompanionConnectionLiveData.getValue();
+        if (connection != null && connection.isConnected()) {
             // Disconnect from our companion.
             // If the API client isn't connected, we should have already lost the Nearby connection.
             if (mGoogleApiClient.isConnected()) {
-                disconnectFromEndpoint(mCompanionEndpoint.mEndpointId);
+                disconnectFromEndpoint(connection.getEndpointId());
             }
         }
         clearCompanionEndpoint();
-    }
-
-    public void sendCommand(byte command) {
-        if (mCompanionEndpoint != null) {
-            sendData(mCompanionEndpoint.mEndpointId, CarCommands.toPayload(command));
-        }
     }
 }

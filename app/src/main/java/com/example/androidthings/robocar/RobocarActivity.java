@@ -47,6 +47,7 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
 
     private AdvertisingInfo mAdvertisingInfo;
     private RobocarAdvertiser mNearbyAdvertiser;
+    private CompanionConnection mCompanionConnection;
 
     private MotorHat mMotorHat;
     private TricolorLed mLed;
@@ -55,7 +56,6 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
     private RobocarViewModel mViewModel;
 
     private boolean mIsAdvertising;
-    private boolean mIsCompanionConnected;
 
     PayloadCallback mPayloadListener = new PayloadCallback() {
         @Override
@@ -71,7 +71,7 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
             if (mCarController != null && mCarController.onCarCommand(command)) {
                 response = command;
             }
-            mNearbyAdvertiser.sendCommand(response);
+            mCompanionConnection.sendCommand(response);
             if (response == CarCommands.ERROR) {
                 // TODO flash red
             }
@@ -124,11 +124,11 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
                 updateUi();
             }
         });
-        mNearbyAdvertiser.getCompanionLiveData().observe(this, new Observer<CompanionEndpoint>() {
+        mNearbyAdvertiser.getCompanionConnectionLiveData().observe(this,
+                new Observer<CompanionConnection>() {
             @Override
-            public void onChanged(@Nullable CompanionEndpoint companionEndpoint) {
-                mIsCompanionConnected = companionEndpoint != null;
-                updateUi();
+            public void onChanged(@Nullable CompanionConnection connection) {
+                setConnection(connection);
             }
         });
 
@@ -232,13 +232,43 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
         Log.e(TAG, "Google API connection failed: " + connectionResult);
     }
 
+    private void setConnection(CompanionConnection connection) {
+        if (mCompanionConnection != connection) {
+            if (mCompanionConnection != null) {
+                mCompanionConnection.getConnectionStateLiveData()
+                        .removeObserver(mConnectionStateObserver);
+            }
+            mCompanionConnection = connection;
+            if (mCompanionConnection != null) {
+                mCompanionConnection.getConnectionStateLiveData()
+                        .observe(this, mConnectionStateObserver);
+            }
+        }
+    }
+
+    private Observer<Integer> mConnectionStateObserver = new Observer<Integer>() {
+        @Override
+        public void onChanged(@Nullable Integer integer) {
+            updateUi();
+        }
+    };
+
     private void updateUi() {
-        if (mIsCompanionConnected) {
-            mCarController.setLedColor(TricolorLed.GREEN);
-        } else if (mIsAdvertising) {
-            mCarController.setLedSequence(mAdvertisingInfo.mLedSequence);
+        if (mCompanionConnection != null) {
+            if (mCompanionConnection.isConnected()) {
+                mCarController.setLedColor(TricolorLed.GREEN);
+                mCarController.display(mAdvertisingInfo.mRobocarId);
+            } else if (mCompanionConnection.isAuthenticating()) {
+                mCarController.setLedSequence(mAdvertisingInfo.mLedSequence);
+                mCarController.display(mCompanionConnection.getAuthToken());
+            }
         } else {
-            mCarController.setLedColor(TricolorLed.YELLOW);
+            mCarController.display(mAdvertisingInfo.mRobocarId);
+            if (mIsAdvertising) {
+                mCarController.setLedSequence(mAdvertisingInfo.mLedSequence);
+            } else {
+                mCarController.setLedColor(TricolorLed.YELLOW);
+            }
         }
     }
 }

@@ -22,7 +22,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
-import com.example.androidthings.robocar.companion.RobocarConnection.ConnectionState;
+import com.example.androidthings.robocar.shared.NearbyConnection.ConnectionState;
 import com.example.androidthings.robocar.shared.NearbyConnectionManager;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
 import com.example.androidthings.robocar.shared.model.DiscovererInfo;
@@ -181,7 +181,8 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
             return;
         }
 
-        RobocarConnection connection = new RobocarConnection(endpoint, this);
+        RobocarConnection connection = new RobocarConnection(endpoint.mEndpointId,
+                endpoint.mAdvertisingInfo, this);
         connection.setState(ConnectionState.REQUESTING);
         mRobocarConnectionLiveData.setValue(connection);
 
