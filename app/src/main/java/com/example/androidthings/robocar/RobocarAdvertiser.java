@@ -17,13 +17,16 @@ package com.example.androidthings.robocar;
 
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.example.androidthings.robocar.shared.NearbyConnection.ConnectionState;
 import com.example.androidthings.robocar.shared.NearbyConnectionManager;
+import com.example.androidthings.robocar.shared.PreferenceUtils;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
 import com.example.androidthings.robocar.shared.model.DiscovererInfo;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -42,6 +45,7 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
     private static final String TAG = "RobocarAdvertiser";
 
     private AdvertisingInfo mAdvertisingInfo;
+    private DiscovererInfo mPairedDiscovererInfo;
 
     private MutableLiveData<Boolean> mAdvertisingLiveData;
     private MutableLiveData<CompanionConnection> mCompanionConnectionLiveData;
@@ -57,7 +61,6 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
 
     public void setAdvertisingInfo(AdvertisingInfo info) {
         if (mAdvertisingInfo != info) {
-            disconnectCompanion();
             boolean wasAdvertising = mAdvertisingLiveData.getValue();
             stopAdvertising();
 
@@ -66,6 +69,10 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
                 startAdvertising();
             }
         }
+    }
+
+    public void setPairedDiscovererInfo(DiscovererInfo info) {
+        mPairedDiscovererInfo = info;
     }
 
     // For observers
@@ -150,9 +157,10 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
             return;
         }
 
+
         DiscovererInfo info = DiscovererInfo.parse(connectionInfo.getEndpointName());
-        if (info == null) {
-            // Discoverer appears to be malformed.
+        if (info == null || isNotTheDroidWeAreLookingFor(info)) {
+            // Discoverer looks malformed, or doesn't match our previous paired companion.
             Nearby.Connections.rejectConnection(mGoogleApiClient, endpointId);
             return;
         }
@@ -184,8 +192,10 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
         super.onNearbyConnected(endpointId, connectionResolution);
         if (isCompanionEndpointId(endpointId)) {
             stopAdvertising();
-            mCompanionConnectionLiveData.getValue().setState(ConnectionState.CONNECTED);
-            // TODO save companion data for automatic reconnect
+
+            CompanionConnection connection = mCompanionConnectionLiveData.getValue();
+            connection.setState(ConnectionState.CONNECTED);
+            savePairingInformation(connection);
         } else {
             disconnectFromEndpoint(endpointId);
         }
@@ -228,5 +238,25 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
             }
         }
         clearCompanionEndpoint();
+    }
+
+    private boolean isNotTheDroidWeAreLookingFor(DiscovererInfo info) {
+        return mPairedDiscovererInfo != null && !mPairedDiscovererInfo.equals(info);
+    }
+
+    private void savePairingInformation(CompanionConnection connection) {
+        DiscovererInfo di = connection.getDiscovererInfo();
+        String authToken = connection.getAuthToken();
+        DiscovererInfo diWithToken = new DiscovererInfo(di.mCompanionId, authToken);
+        AdvertisingInfo aiWithToken = new AdvertisingInfo(mAdvertisingInfo.mRobocarId,
+                mAdvertisingInfo.mLedSequence, authToken);
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(
+                mGoogleApiClient.getContext());
+        PreferenceUtils.saveDiscovererInfo(prefs, diWithToken);
+        PreferenceUtils.saveAdvertisingInfo(prefs, aiWithToken);
+
+        setAdvertisingInfo(aiWithToken);
+        setPairedDiscovererInfo(diWithToken);
     }
 }

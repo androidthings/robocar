@@ -19,6 +19,7 @@ import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.arch.lifecycle.Observer;
 import android.arch.lifecycle.ViewModelProviders;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -60,6 +61,7 @@ public class RobocarConnectionDialog extends DialogFragment implements OnClickLi
         @SuppressLint("InflateParams")
         View view = dialog.getLayoutInflater().inflate(R.layout.fragment_auth_dialog, null, false);
         dialog.setView(view);
+        dialog.setCanceledOnTouchOutside(false); // can still cancel with Back
 
         mMessageText = view.findViewById(android.R.id.message);
         mPositiveButton = view.findViewById(R.id.positive_button);
@@ -158,6 +160,21 @@ public class RobocarConnectionDialog extends DialogFragment implements OnClickLi
                 dismiss();
                 mRobocarConnection.reject();
                 break;
+        }
+    }
+
+    @Override
+    public void onCancel(DialogInterface dialog) {
+        super.onCancel(dialog);
+        // We shouldn't be showing if we're connected, but in case we are, let's not drop the
+        // connection since the user should be expecting to see the controls.
+        if (!mRobocarConnection.isConnected()) {
+            if (mRobocarConnection.getState() == ConnectionState.AUTHENTICATING) {
+                mRobocarConnection.reject();
+            } else {
+                // This will clear the connection even if not fully connected.
+                mRobocarConnection.disconnect();
+            }
         }
     }
 }

@@ -70,7 +70,6 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
         }
 
         mViewModel = ViewModelProviders.of(this).get(CompanionViewModel.class);
-        // TODO observe things in the ViewModel
 
         if (savedInstanceState == null) {
             // First launch. Attach the connector fragment and give it our client to connect.
@@ -91,7 +90,9 @@ public class CompanionActivity extends AppCompatActivity implements ConnectorCal
             }
         }
 
-        mViewModel.getRobocarDiscoverer().setDiscovererInfo(mDiscovererInfo);
+        RobocarDiscoverer discoverer = mViewModel.getRobocarDiscoverer();
+        discoverer.setDiscovererInfo(mDiscovererInfo);
+        discoverer.setPairedAdvertisingInfo(PreferenceUtils.loadAdvertisingInfo(prefs));
         mViewModel.getNavigationStateLiveData().observe(this, new Observer<Integer>() {
             @Override
             public void onChanged(@Nullable Integer value) {

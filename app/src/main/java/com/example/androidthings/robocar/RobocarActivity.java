@@ -117,6 +117,7 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
         mNearbyAdvertiser = mViewModel.getRobocarAdvertiser();
 
         mNearbyAdvertiser.setAdvertisingInfo(mAdvertisingInfo);
+        mNearbyAdvertiser.setPairedDiscovererInfo(PreferenceUtils.loadDiscovererInfo(prefs));
         mNearbyAdvertiser.getAdvertisingLiveData().observe(this, new Observer<Boolean>() {
             @Override
             public void onChanged(@Nullable Boolean value) {

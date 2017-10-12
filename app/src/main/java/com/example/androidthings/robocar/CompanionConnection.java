@@ -29,8 +29,15 @@ public class CompanionConnection extends NearbyConnection {
     public CompanionConnection(String endpointId, DiscovererInfo discovererInfo,
             RobocarAdvertiser advertiser) {
         super(endpointId, advertiser);
+        if (discovererInfo == null) {
+            throw new IllegalArgumentException("DiscovererInfo cannot be null");
+        }
         mDiscovererInfo = discovererInfo;
         mRobocarAdvertiser = advertiser;
+    }
+
+    public DiscovererInfo getDiscovererInfo() {
+        return mDiscovererInfo;
     }
 
     public boolean isAuthenticating() {

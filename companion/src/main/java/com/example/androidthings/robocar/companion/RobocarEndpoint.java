@@ -24,8 +24,11 @@ public class RobocarEndpoint {
 
     public final String mEndpointId;
     public final AdvertisingInfo mAdvertisingInfo;
+    public final boolean mIsPaired;
+    public final boolean mIsRemembered;
 
-    public RobocarEndpoint(String endpointId, AdvertisingInfo advertisingInfo) {
+    public RobocarEndpoint(String endpointId, AdvertisingInfo advertisingInfo,
+            boolean isRemembered) {
         if (endpointId == null) {
             throw new IllegalArgumentException("Endpoint ID cannot be null");
         }
@@ -34,6 +37,8 @@ public class RobocarEndpoint {
         }
         mEndpointId = endpointId;
         mAdvertisingInfo = advertisingInfo;
+        mIsPaired = mAdvertisingInfo.mIsPaired;
+        mIsRemembered = mIsPaired && isRemembered;
     }
 
     @Override

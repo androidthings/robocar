@@ -79,11 +79,23 @@ public class RobocarEndpointsAdapter
                     .getString(R.string.robocar_name, item.mAdvertisingInfo.mRobocarId));
             mColorPatternView.setText(
                     AdvertisingInfo.ledColorsToString(item.mAdvertisingInfo.mLedSequence));
+
+            boolean enabled = canConnect();
+            mNameView.setEnabled(enabled);
+            mColorPatternView.setEnabled(enabled);
+        }
+
+        private boolean canConnect() {
+            return !mRobocarEndpoint.mIsPaired || mRobocarEndpoint.mIsRemembered;
         }
 
         @Override
         public void onClick(View view) {
-            mRobocarDiscoverer.requestConnection(mRobocarEndpoint.mEndpointId);
+            if (canConnect()) {
+                mRobocarDiscoverer.requestConnection(mRobocarEndpoint.mEndpointId);
+            } else {
+                // TODO show dialog explaining how to reset Robocar
+            }
         }
     }
 }

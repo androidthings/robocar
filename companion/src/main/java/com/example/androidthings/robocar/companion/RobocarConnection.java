@@ -27,15 +27,25 @@ public class RobocarConnection extends NearbyConnection {
     private final RobocarDiscoverer mRobocarDiscoverer;
     private final AdvertisingInfo mAdvertisingInfo;
 
+    private final boolean mAutoConnect;
+
     public RobocarConnection(String endpointId, AdvertisingInfo advertisingInfo,
-            RobocarDiscoverer robocarDiscoverer) {
+            RobocarDiscoverer robocarDiscoverer, boolean autoConnect) {
         super(endpointId, robocarDiscoverer);
+        if (advertisingInfo == null) {
+            throw new IllegalArgumentException("AdvertisingInfo cannot be null");
+        }
         mAdvertisingInfo = advertisingInfo;
         mRobocarDiscoverer = robocarDiscoverer;
+        mAutoConnect = autoConnect;
     }
 
     public AdvertisingInfo getAdvertisingInfo() {
         return mAdvertisingInfo;
+    }
+
+    public boolean isAutoConnect() {
+        return mAutoConnect;
     }
 
     public void accept() {
@@ -51,8 +61,6 @@ public class RobocarConnection extends NearbyConnection {
     }
 
     public void disconnect() {
-        if (getState() == ConnectionState.CONNECTED) {
-            mRobocarDiscoverer.disconnect();
-        }
+        mRobocarDiscoverer.disconnect();
     }
 }

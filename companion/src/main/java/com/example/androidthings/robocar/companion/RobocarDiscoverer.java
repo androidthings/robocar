@@ -17,13 +17,16 @@ package com.example.androidthings.robocar.companion;
 
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.example.androidthings.robocar.shared.NearbyConnection.ConnectionState;
 import com.example.androidthings.robocar.shared.NearbyConnectionManager;
+import com.example.androidthings.robocar.shared.PreferenceUtils;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
 import com.example.androidthings.robocar.shared.model.DiscovererInfo;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -50,6 +53,9 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
 
     private final Map<String, RobocarEndpoint> mEndpointMap = new LinkedHashMap<>();
     private DiscovererInfo mDiscovererInfo;
+    private AdvertisingInfo mPairedAdvertisingInfo;
+
+    private boolean mAutoConnectEnabled = true;
 
     private MutableLiveData<Boolean> mDiscoveryLiveData;
     private MutableLiveData<List<RobocarEndpoint>> mRobocarEndpointsLiveData;
@@ -84,6 +90,10 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
         // This is only checked when we request a connection, and we don't need to interrupt one
         // already in progress.
         mDiscovererInfo = info;
+    }
+
+    public void setPairedAdvertisingInfo(AdvertisingInfo info) {
+        mPairedAdvertisingInfo = info;
     }
 
     // For observers
@@ -160,8 +170,14 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
     private void onNearbyEndpointFound(String endpointId, DiscoveredEndpointInfo endpointInfo) {
         AdvertisingInfo info = AdvertisingInfo.parseAdvertisingName(endpointInfo.getEndpointName());
         if (info != null) {
-            mEndpointMap.put(endpointId, new RobocarEndpoint(endpointId, info));
+            boolean isRemembered = isTheDroidWeAreLookingFor(info);
+            mEndpointMap.put(endpointId, new RobocarEndpoint(endpointId, info, isRemembered));
             onEndpointsChanged();
+
+            if (isRemembered && mAutoConnectEnabled) {
+                // try to auto-connect
+                requestConnection(endpointId);
+            }
         }
     }
 
@@ -182,7 +198,7 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
         }
 
         RobocarConnection connection = new RobocarConnection(endpoint.mEndpointId,
-                endpoint.mAdvertisingInfo, this);
+                endpoint.mAdvertisingInfo, this, endpoint.mIsRemembered);
         connection.setState(ConnectionState.REQUESTING);
         mRobocarConnectionLiveData.setValue(connection);
 
@@ -208,7 +224,12 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
         RobocarConnection connection = mRobocarConnectionLiveData.getValue();
         if (connection != null && connection.endpointMatches(endpointId)) {
             connection.setAuthToken(connectionInfo.getAuthenticationToken());
-            connection.setState(ConnectionState.AUTHENTICATING);
+            if (connection.isAutoConnect()) {
+                acceptConnection();
+            } else {
+                // Wait for something else to call acceptConnection.
+                connection.setState(ConnectionState.AUTHENTICATING);
+            }
         } else {
             // We didn't request this connection, so reject it.
             rejectConnection(endpointId);
@@ -270,12 +291,28 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
     }
 
     @Override
+    protected void onNearbyConnectionRejected(String endpointId) {
+        super.onNearbyConnectionRejected(endpointId);
+        RobocarConnection connection = mRobocarConnectionLiveData.getValue();
+        if (connection != null && connection.endpointMatches(endpointId)) {
+            if (connection.isAutoConnect()) {
+                // Avoid reconnecting.
+                mAutoConnectEnabled = false;
+            }
+            clearRobocarConnection();
+        }
+    }
+
+    @Override
     protected void onNearbyConnected(String endpointId, ConnectionResolution connectionResolution) {
         super.onNearbyConnected(endpointId, connectionResolution);
         RobocarConnection connection = mRobocarConnectionLiveData.getValue();
         if (connection != null && connection.endpointMatches(endpointId)) {
-            connection.setState(ConnectionState.CONNECTED);
             stopDiscovery();
+            connection.setState(ConnectionState.CONNECTED);
+            savePairingInformation(connection);
+            // We may have disabled this due to a canceled or rejected connection. Re-enable it now.
+            mAutoConnectEnabled = true;
         } else {
             // This should never happen, but let's disconnect just to be safe.
             disconnectFromEndpoint(endpointId);
@@ -294,10 +331,16 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
 
     public void disconnect() {
         RobocarConnection connection = mRobocarConnectionLiveData.getValue();
-        if (connection != null && connection.isConnected()) {
-            disconnectFromEndpoint(connection.getEndpointId());
-            // We don't receive onNearbyDisconnected() from this, so clean up ourselves.
+        if (connection != null) {
+            if (connection.isConnected()) {
+                disconnectFromEndpoint(connection.getEndpointId());
+                // Avoid reconnecting.
+                mAutoConnectEnabled = false;
+            }
+            // We don't receive onNearbyDisconnected() from the above, and we want to clear it
+            // anyway to handle cancelation by the user.
             clearRobocarConnection();
+            // If we were connected and stopped discovering, this will start it again.
             startDiscovery();
         }
     }
@@ -317,5 +360,25 @@ public class RobocarDiscoverer extends NearbyConnectionManager implements Connec
 
     private void onEndpointsChanged() {
         mRobocarEndpointsLiveData.setValue(new ArrayList<>(mEndpointMap.values()));
+    }
+
+    private boolean isTheDroidWeAreLookingFor(AdvertisingInfo info) {
+        return mPairedAdvertisingInfo != null && mPairedAdvertisingInfo.equals(info);
+    }
+
+    private void savePairingInformation(RobocarConnection connection) {
+        AdvertisingInfo ai = connection.getAdvertisingInfo();
+        String authToken = connection.getAuthToken();
+        DiscovererInfo diWithToken = new DiscovererInfo(mDiscovererInfo.mCompanionId, authToken);
+        AdvertisingInfo aiWithToken = new AdvertisingInfo(ai.mRobocarId, ai.mLedSequence,
+                authToken);
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(
+                mGoogleApiClient.getContext());
+        PreferenceUtils.saveAdvertisingInfo(prefs, aiWithToken);
+        PreferenceUtils.saveDiscovererInfo(prefs, diWithToken);
+
+        setDiscovererInfo(diWithToken);
+        setPairedAdvertisingInfo(aiWithToken);
     }
 }
