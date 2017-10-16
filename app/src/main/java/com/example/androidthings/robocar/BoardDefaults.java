@@ -43,6 +43,17 @@ class BoardDefaults {
         }
     }
 
+    public static String getButtonGpioPin() {
+        switch (Build.DEVICE) {
+            case DEVICE_RPI3:
+                return "BCM26";
+            case DEVICE_IMX7D_PICO:
+                return "GPIO_33";
+            default:
+                throw new IllegalArgumentException("Unknown device: " + Build.DEVICE);
+        }
+    }
+
     private BoardDefaults() {
         //no instance
     }

@@ -17,6 +17,7 @@ package com.example.androidthings.robocar;
 
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.example.androidthings.robocar.TricolorLed.Tricolor;
@@ -192,7 +193,7 @@ public class CarController {
 
     public void display(String text) {
         if (mDisplay != null) {
-            if (mDisplayRunnable != null && mDisplayRunnable.mText.equals(text)) {
+            if (mDisplayRunnable != null && TextUtils.equals(text, mDisplayRunnable.mText)) {
                 return; // Avoid restarting the marquee for the same text
             }
             clearDisplay();

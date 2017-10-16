@@ -20,6 +20,7 @@ import android.arch.lifecycle.Observer;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
@@ -36,6 +37,8 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate;
+import com.google.android.things.contrib.driver.button.Button.LogicState;
+import com.google.android.things.contrib.driver.button.ButtonInputDriver;
 import com.google.android.things.contrib.driver.ht16k33.AlphanumericDisplay;
 
 import java.io.IOException;
@@ -44,6 +47,8 @@ import java.io.IOException;
 public class RobocarActivity extends AppCompatActivity implements ConnectorCallbacks {
 
     private static final String TAG = "RobocarActivity";
+    private static final long DISCONNECT_DELAY = 2500L; //ms
+    private static final long RESET_DELAY = 5000L; //ms
 
     private AdvertisingInfo mAdvertisingInfo;
     private RobocarAdvertiser mNearbyAdvertiser;
@@ -52,10 +57,15 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
     private MotorHat mMotorHat;
     private TricolorLed mLed;
     private AlphanumericDisplay mDisplay;
+    private ButtonInputDriver mButtonInputDriver;
+
     private CarController mCarController;
     private RobocarViewModel mViewModel;
 
     private boolean mIsAdvertising;
+
+    private Handler mResetHandler;
+    private boolean mKeyPressed;
 
     PayloadCallback mPayloadListener = new PayloadCallback() {
         @Override
@@ -105,13 +115,23 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
             mDisplay.clear();
         } catch (IOException e) {
             // We may not have a display, which is OK. CarController only uses it if it's not null.
-            Log.d(TAG, "Failed to open display.");
+            Log.e(TAG, "Failed to open display.", e);
             mDisplay = null;
+        }
+        try {
+            mButtonInputDriver = new ButtonInputDriver(BoardDefaults.getButtonGpioPin(),
+                    LogicState.PRESSED_WHEN_HIGH, KeyEvent.KEYCODE_A);
+            mButtonInputDriver.register();
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to open button driver.", e);
+            mButtonInputDriver = null;
         }
 
         String[] ledPins = BoardDefaults.getLedGpioPins();
         mLed = new TricolorLed(ledPins[0], ledPins[1], ledPins[2]);
         mCarController = new CarController(mMotorHat, mLed, mDisplay);
+
+        mResetHandler = new Handler();
 
         mViewModel = ViewModelProviders.of(this).get(RobocarViewModel.class);
         mNearbyAdvertiser = mViewModel.getRobocarAdvertiser();
@@ -191,29 +211,62 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
                 mDisplay = null;
             }
         }
+
+        if (mButtonInputDriver != null) {
+            mButtonInputDriver.unregister();
+            try {
+                mButtonInputDriver.close();
+            } catch (IOException e) {
+                Log.e(TAG, "Error closing button driver", e);
+            } finally{
+                mButtonInputDriver = null;
+            }
+        }
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_A) { //29
+            if (!mKeyPressed) {
+                mKeyPressed = true;
+                mResetHandler.postDelayed(mDisconnectRunnable, DISCONNECT_DELAY);
+                mResetHandler.postDelayed(mResetRunnable, RESET_DELAY);
+
+            }
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_A) { //29
+            mKeyPressed = false;
+            // No effect if these have already run
+            mResetHandler.removeCallbacks(mDisconnectRunnable);
+            mResetHandler.removeCallbacks(mResetRunnable);
+            return true;
+        }
         return handleKeyCode(keyCode) || super.onKeyUp(keyCode, event);
     }
 
+    // For testing commands to the motors via ADB.
     private boolean handleKeyCode(int keyCode) {
         if (mCarController != null) {
             switch (keyCode) {
-                case KeyEvent.KEYCODE_F:
+                case KeyEvent.KEYCODE_DPAD_UP: //19
                     mCarController.onCarCommand(CarCommands.GO_FORWARD);
                     return true;
-                case KeyEvent.KEYCODE_B:
+                case KeyEvent.KEYCODE_DPAD_DOWN: //20
                     mCarController.onCarCommand(CarCommands.GO_BACK);
                     return true;
-                case KeyEvent.KEYCODE_L:
+                case KeyEvent.KEYCODE_DPAD_LEFT: //21
                     mCarController.onCarCommand(CarCommands.TURN_LEFT);
                     return true;
-                case KeyEvent.KEYCODE_R:
+                case KeyEvent.KEYCODE_DPAD_RIGHT: //22
                     mCarController.onCarCommand(CarCommands.TURN_RIGHT);
                     return true;
-                case KeyEvent.KEYCODE_S:
+                case KeyEvent.KEYCODE_DPAD_CENTER: //23
                     mCarController.onCarCommand(CarCommands.STOP);
                     return true;
             }
@@ -271,5 +324,53 @@ public class RobocarActivity extends AppCompatActivity implements ConnectorCallb
                 mCarController.setLedColor(TricolorLed.YELLOW);
             }
         }
+    }
+
+    private Runnable mDisconnectRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mKeyPressed) {
+                disconnectCompanion();
+            }
+        }
+    };
+
+    private Runnable mResetRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mKeyPressed) {
+                reset();
+            }
+        }
+    };
+
+    private void disconnectCompanion() {
+        mNearbyAdvertiser.disconnectCompanion();
+        mNearbyAdvertiser.startAdvertising();
+    }
+
+    private void reset() {
+        mNearbyAdvertiser.disconnectCompanion();
+        mNearbyAdvertiser.stopAdvertising();
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        // Remove the saved discoverer info.
+        PreferenceUtils.clearDicovererInfo(prefs);
+        mNearbyAdvertiser.setPairedDiscovererInfo(null);
+
+        // Remove pair token from advertising info.
+        mAdvertisingInfo = new AdvertisingInfo(mAdvertisingInfo.mRobocarId,
+                mAdvertisingInfo.mLedSequence, null);
+        PreferenceUtils.saveAdvertisingInfo(prefs, mAdvertisingInfo);
+        mNearbyAdvertiser.setAdvertisingInfo(mAdvertisingInfo);
+
+        // Start advertising after a delay so the display & LED changes are obvious to the user.
+        mCarController.display(null);
+        mResetHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                mNearbyAdvertiser.startAdvertising();
+            }
+        }, 1500L);
     }
 }

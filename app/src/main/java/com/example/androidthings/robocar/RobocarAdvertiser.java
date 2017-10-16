@@ -228,7 +228,7 @@ public class RobocarAdvertiser extends NearbyConnectionManager implements Connec
         mCompanionConnectionLiveData.setValue(null);
     }
 
-    private void disconnectCompanion() {
+    public void disconnectCompanion() {
         CompanionConnection connection = mCompanionConnectionLiveData.getValue();
         if (connection != null && connection.isConnected()) {
             // Disconnect from our companion.

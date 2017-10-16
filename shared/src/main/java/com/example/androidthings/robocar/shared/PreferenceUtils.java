@@ -83,4 +83,8 @@ public class PreferenceUtils {
         String pairToken = prefs.getString(KEY_COMPANION_PAIR_TOKEN, null);
         return new DiscovererInfo(id, pairToken);
     }
+
+    public static void clearDicovererInfo(SharedPreferences prefs) {
+        prefs.edit().remove(KEY_COMPANION_ID).remove(KEY_COMPANION_PAIR_TOKEN).apply();
+    }
 }
