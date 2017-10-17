@@ -21,6 +21,7 @@ import android.text.TextUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,17 +31,17 @@ import java.util.regex.Pattern;
  */
 public class AdvertisingInfo {
     private static final String ROBOCAR = "Robocar";
-    private static final String SEGMENT_SEPARATOR = ":";
-    private static final String LED_COLOR_SEPARATOR = "-";
+    private static final String SEPARATOR_COLON = ":";
+    private static final String SEPARATOR_HYPHEN = "-";
 
     private static final int PAIRED = 1;
     private static final int UNPAIRED = 0;
 
-    // Robocar:(\d{8}):([01]):([a-zA-Z-]+)(:(\S{5}))?
-    private static final Pattern ADVERTISING_PATTERN = Pattern.compile(ROBOCAR + SEGMENT_SEPARATOR
-            + "(\\d{8})" + SEGMENT_SEPARATOR
-            + "([" + UNPAIRED + PAIRED + "])" + SEGMENT_SEPARATOR
-            + "([a-zA-z" + LED_COLOR_SEPARATOR + "]+)(" + SEGMENT_SEPARATOR + "(\\S{5}))?"
+    // Robocar:(\d{4}-\d{4}):([01]):([a-zA-Z-]+)(:(\S{5}))?
+    private static final Pattern ADVERTISING_PATTERN = Pattern.compile(ROBOCAR + SEPARATOR_COLON
+            + "(\\d{4}" + SEPARATOR_HYPHEN + "\\d{4})" + SEPARATOR_COLON
+            + "([" + UNPAIRED + PAIRED + "])" + SEPARATOR_COLON
+            + "([a-zA-z" + SEPARATOR_HYPHEN + "]+)(" + SEPARATOR_COLON + "(\\S{5}))?"
     );
 
     public enum LedColor {
@@ -70,9 +71,11 @@ public class AdvertisingInfo {
         return new AdvertisingInfo(generateId(), generateLedSequence(), false, null);
     }
 
-    static int generateId() {
-        // generate an 8 digit id
-        return 1000_0000 + (new Random().nextInt(9000_0000));
+    static String generateId() {
+        // generate an 8 digit id in the form ####-####
+        Random r = new Random();
+        return String.format(Locale.US,
+                "%04d" + SEPARATOR_HYPHEN + "%04d", r.nextInt(10000), r.nextInt(10000));
     }
 
     static List<LedColor> generateLedSequence() {
@@ -102,7 +105,7 @@ public class AdvertisingInfo {
         StringBuilder builder = new StringBuilder();
         for (LedColor ledColor : colors) {
             if (builder.length() > 0) {
-                builder.append(LED_COLOR_SEPARATOR);
+                builder.append(SEPARATOR_HYPHEN);
             }
             builder.append(ledColor.name());
         }
@@ -113,7 +116,7 @@ public class AdvertisingInfo {
         if (input == null) {
             return Collections.emptyList();
         }
-        String[] tokens = input.split(LED_COLOR_SEPARATOR + "+");
+        String[] tokens = input.split(SEPARATOR_HYPHEN + "+");
         if (tokens.length < 1) {
             return Collections.emptyList();
         }
@@ -133,14 +136,14 @@ public class AdvertisingInfo {
         if (!matcher.matches()) {
             return null;
         }
-        int id = Integer.valueOf(matcher.group(1));
+        String id = matcher.group(1);
         boolean isPaired = Integer.valueOf(matcher.group(2)) == PAIRED;
         List<LedColor> colors = stringToLedColors(matcher.group(3));
         String pairToken = matcher.group(5);
         return new AdvertisingInfo(id, colors, isPaired, pairToken);
     }
 
-    public final int mRobocarId;
+    public final String mRobocarId;
     public final List<LedColor> mLedSequence;
 
     public final boolean mIsPaired;
@@ -148,8 +151,11 @@ public class AdvertisingInfo {
 
     private int mHashcode; // cache hashcode
 
-    public AdvertisingInfo(int robocarId, List<LedColor> ledSequence, boolean isPaired,
+    public AdvertisingInfo(String robocarId, List<LedColor> ledSequence, boolean isPaired,
             String pairToken) {
+        if (robocarId == null) {
+            throw new IllegalArgumentException("Robocar ID cannot be null");
+        }
         mRobocarId = robocarId;
         mLedSequence = Collections.unmodifiableList(ledSequence);
         mIsPaired = isPaired;
@@ -159,14 +165,14 @@ public class AdvertisingInfo {
     public String getAdvertisingName() {
         StringBuilder builder = new StringBuilder();
         builder.append(ROBOCAR)
-                .append(SEGMENT_SEPARATOR)
+                .append(SEPARATOR_COLON)
                 .append(mRobocarId)
-                .append(SEGMENT_SEPARATOR)
+                .append(SEPARATOR_COLON)
                 .append(mIsPaired ? PAIRED : UNPAIRED)
-                .append(SEGMENT_SEPARATOR)
+                .append(SEPARATOR_COLON)
                 .append(ledColorsToString(mLedSequence));
         if (mPairToken != null) {
-            builder.append(SEGMENT_SEPARATOR)
+            builder.append(SEPARATOR_COLON)
                     .append(mPairToken);
         }
         return builder.toString();
@@ -181,7 +187,7 @@ public class AdvertisingInfo {
             return false;
         }
         AdvertisingInfo other = (AdvertisingInfo) obj;
-        return mRobocarId == other.mRobocarId
+        return mRobocarId.equals(other.mRobocarId)
                 && mLedSequence.equals(other.mLedSequence)
                 && TextUtils.equals(mPairToken, other.mPairToken);
     }
@@ -190,7 +196,7 @@ public class AdvertisingInfo {
     public int hashCode() {
         int h = mHashcode;
         if (h == 0) {
-            h = mRobocarId;
+            h = mRobocarId.hashCode();
             h *= 1000003;
             h ^= mLedSequence.hashCode();
             h *= 1000003;

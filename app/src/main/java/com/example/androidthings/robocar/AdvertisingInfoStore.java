@@ -64,10 +64,10 @@ public class AdvertisingInfoStore {
     }
 
     private AdvertisingInfo load() {
-        int id = mPreferences.getInt(PREFS_KEY_ROBOCAR_ID, -1);
+        String id = mPreferences.getString(PREFS_KEY_ROBOCAR_ID, null);
         List<LedColor> leds = AdvertisingInfo.stringToLedColors(
                 mPreferences.getString(PREFS_KEY_LED_SEQUENCE, null));
-        if (id < 0 || (leds == null || leds.size() < 1)) {
+        if (id == null || (leds == null || leds.size() < 1)) {
             // insufficient or invalid data
             return null;
         }
@@ -80,7 +80,7 @@ public class AdvertisingInfoStore {
             return;
         }
         SharedPreferences.Editor editor = mPreferences.edit();
-        editor.putInt(PREFS_KEY_ROBOCAR_ID, info.mRobocarId)
+        editor.putString(PREFS_KEY_ROBOCAR_ID, info.mRobocarId)
                 .putString(PREFS_KEY_LED_SEQUENCE,
                         AdvertisingInfo.ledColorsToString(info.mLedSequence));
         if (info.mIsPaired) {
