@@ -37,7 +37,7 @@ class BoardDefaults {
             case DEVICE_RPI3:
                 return new String[]{"BCM5", "BCM6", "BCM12"};
             case DEVICE_IMX7D_PICO:
-                return new String[]{"GPIO_34", "GPIO_39", "GPIO_32"};
+                return new String[]{"GPIO2_IO02", "GPIO2_IO07", "GPIO2_IO00"};
             default:
                 throw new IllegalArgumentException("Unknown device: " + Build.DEVICE);
         }
@@ -48,7 +48,7 @@ class BoardDefaults {
             case DEVICE_RPI3:
                 return "BCM26";
             case DEVICE_IMX7D_PICO:
-                return "GPIO_33";
+                return "GPIO2_IO01";
             default:
                 throw new IllegalArgumentException("Unknown device: " + Build.DEVICE);
         }
