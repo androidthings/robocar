@@ -32,7 +32,7 @@ import com.example.androidthings.robocar.shared.ConnectorFragment;
 import com.example.androidthings.robocar.shared.ConnectorFragment.ConnectorCallbacks;
 import com.example.androidthings.robocar.shared.PreferenceUtils;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo;
-import com.example.motorhat.MotorHat;
+import com.google.android.things.contrib.driver.motorhat.MotorHat;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.nearby.connection.Payload;
 import com.google.android.gms.nearby.connection.PayloadCallback;

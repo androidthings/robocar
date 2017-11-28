@@ -23,7 +23,7 @@ import android.util.Log;
 import com.example.androidthings.robocar.TricolorLed.Tricolor;
 import com.example.androidthings.robocar.shared.CarCommands;
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo.LedColor;
-import com.example.motorhat.MotorHat;
+import com.google.android.things.contrib.driver.motorhat.MotorHat;
 import com.google.android.things.contrib.driver.ht16k33.AlphanumericDisplay;
 
 import java.io.IOException;

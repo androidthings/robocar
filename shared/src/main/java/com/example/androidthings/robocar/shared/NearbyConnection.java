@@ -19,11 +19,15 @@ import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.support.annotation.IntDef;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+
 public class NearbyConnection {
 
     @IntDef({ConnectionState.NOT_CONNECTED, ConnectionState.REQUESTING,
             ConnectionState.AUTHENTICATING, ConnectionState.AUTH_ACCEPTED,
             ConnectionState.AUTH_REJECTED, ConnectionState.CONNECTED})
+    @Retention(RetentionPolicy.SOURCE)
     public @interface ConnectionState {
         int NOT_CONNECTED = 0;
         int REQUESTING = 1;
