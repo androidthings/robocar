@@ -20,7 +20,7 @@ import android.util.Log;
 
 import com.example.androidthings.robocar.shared.model.AdvertisingInfo.LedColor;
 import com.google.android.things.pio.Gpio;
-import com.google.android.things.pio.PeripheralManagerService;
+import com.google.android.things.pio.PeripheralManager;
 
 import java.io.IOException;
 import java.lang.annotation.Retention;
@@ -69,15 +69,14 @@ public class TricolorLed implements AutoCloseable {
     private @Tricolor int mColor = OFF;
 
     public TricolorLed(String redPin, String greenPin, String bluePin) {
-        PeripheralManagerService pioService = new PeripheralManagerService();
-        mGpioRed = createGpio(pioService, redPin);
-        mGpioGreen = createGpio(pioService, greenPin);
-        mGpioBlue = createGpio(pioService, bluePin);
+        mGpioRed = createGpio(redPin);
+        mGpioGreen = createGpio(greenPin);
+        mGpioBlue = createGpio(bluePin);
     }
 
-    private Gpio createGpio(PeripheralManagerService pioService, String pin) {
+    private Gpio createGpio(String pin) {
         try {
-            Gpio gpio = pioService.openGpio(pin);
+            Gpio gpio = PeripheralManager.getInstance().openGpio(pin);
             gpio.setDirection(Gpio.DIRECTION_OUT_INITIALLY_HIGH);
             return gpio;
         } catch (IOException e) {
