@@ -47,7 +47,7 @@ dependencies {
     })
     testImplementation 'junit:junit:4.12'
 
-    compileOnly 'com.google.android.things:androidthings:0.8-devpreview'
+    compileOnly 'com.google.android.things:androidthings:1.0'
 
     implementation 'com.google.android.gms:play-services:11.6.2'
     implementation project(path: ':shared')
