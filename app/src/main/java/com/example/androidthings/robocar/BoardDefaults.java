@@ -19,11 +19,13 @@ import android.os.Build;
 
 class BoardDefaults {
     private static final String DEVICE_RPI3 = "rpi3";
+    private static final String DEVICE_RPI3BP = "rpi3bp";
     private static final String DEVICE_IMX7D_PICO = "imx7d_pico";
 
     public static String getI2cBus() {
         switch (Build.DEVICE) {
             case DEVICE_RPI3:
+            case DEVICE_RPI3BP:
                 return "I2C1";
             case DEVICE_IMX7D_PICO:
                 return "I2C1";
@@ -35,6 +37,7 @@ class BoardDefaults {
     public static String[] getLedGpioPins() {
         switch (Build.DEVICE) {
             case DEVICE_RPI3:
+            case DEVICE_RPI3BP:
                 return new String[]{"BCM5", "BCM6", "BCM12"};
             case DEVICE_IMX7D_PICO:
                 return new String[]{"GPIO2_IO02", "GPIO2_IO07", "GPIO2_IO00"};
@@ -46,6 +49,7 @@ class BoardDefaults {
     public static String getButtonGpioPin() {
         switch (Build.DEVICE) {
             case DEVICE_RPI3:
+            case DEVICE_RPI3BP:
                 return "BCM26";
             case DEVICE_IMX7D_PICO:
                 return "GPIO2_IO01";
